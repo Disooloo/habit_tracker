@@ -21,6 +21,18 @@ class NotificationService {
     'Можно начать с малого',
   ];
 
+  static const List<String> _inactiveMessages = [
+    'Не забывай заходить к нам. Один маленький шаг сегодня уже победа.',
+    'Мы скучали. Вернись к привычке хотя бы на 30 секунд.',
+    'Ты можешь продолжить с малого, мы рядом.',
+  ];
+
+  static const List<String> _dayStartMessages = [
+    'Новый день! Начните с одной маленькой привычки.',
+    'Полночь прошла - сегодня у вас новый шанс на прогресс.',
+    'Доброе начало дня: выберите первую привычку и отметьте ее.',
+  ];
+
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -128,6 +140,78 @@ class NotificationService {
 
   Future<void> cancelAllReminders() async {
     await _notifications.cancelAll();
+  }
+
+  Future<void> scheduleInactivityReminder48h() async {
+    await initialize();
+    await _notifications.cancel(AppConstants.notificationInactivityId);
+
+    final random = Random();
+    final message = _inactiveMessages[random.nextInt(_inactiveMessages.length)];
+
+    final scheduleAt = tz.TZDateTime.now(tz.local).add(const Duration(hours: 48));
+
+    await _notifications.zonedSchedule(
+      AppConstants.notificationInactivityId,
+      'Давно не виделись',
+      message,
+      scheduleAt,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          AppConstants.notificationChannelId.toString(),
+          AppConstants.notificationChannelName,
+          channelDescription: AppConstants.notificationChannelDescription,
+          importance: Importance.low,
+          priority: Priority.low,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  Future<void> scheduleDailyDayStartReminder() async {
+    await initialize();
+    await _notifications.cancel(AppConstants.notificationDayStartId);
+    final random = Random();
+    final message = _dayStartMessages[random.nextInt(_dayStartMessages.length)];
+
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, 0, 0);
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+
+    await _notifications.zonedSchedule(
+      AppConstants.notificationDayStartId,
+      'Пора к привычкам',
+      message,
+      scheduled,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          AppConstants.notificationChannelId.toString(),
+          AppConstants.notificationChannelName,
+          channelDescription: AppConstants.notificationChannelDescription,
+          importance: Importance.low,
+          priority: Priority.low,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
   }
 
   Future<bool> requestPermissions() async {

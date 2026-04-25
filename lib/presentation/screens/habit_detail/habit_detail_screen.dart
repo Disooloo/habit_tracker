@@ -6,21 +6,92 @@ import '../../bloc/habit/habit_event.dart';
 import '../../bloc/habit/habit_state.dart';
 import '../../bloc/timer/timer_bloc.dart';
 import '../../bloc/timer/timer_state.dart';
-import '../timer/timer_screen.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/date_utils.dart' as habit_date_utils;
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/habit_tracking.dart';
 import '../../../domain/entities/habit.dart';
+import '../../../services/habit_advice_service.dart';
+import '../../../services/habit_goal_service.dart';
 
-class HabitDetailScreen extends StatelessWidget {
+enum HistoryRange { day1, day3, week, month, custom }
+
+class HabitDetailScreen extends StatefulWidget {
   final int habitId;
 
   const HabitDetailScreen({super.key, required this.habitId});
 
   @override
+  State<HabitDetailScreen> createState() => _HabitDetailScreenState();
+}
+
+class _HabitDetailScreenState extends State<HabitDetailScreen> {
+  HistoryRange _selectedRange = HistoryRange.week;
+  DateTimeRange? _customRange;
+  final HabitAdviceService _adviceService = HabitAdviceService();
+  final HabitGoalService _goalService = HabitGoalService();
+  String? _currentGoal;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGoal();
+  }
+
+  Future<void> _loadGoal() async {
+    final goal = await _goalService.getGoal(widget.habitId);
+    if (!mounted) return;
+    setState(() {
+      _currentGoal = goal;
+    });
+  }
+
+  List<HabitTracking> _filterTracking(List<HabitTracking> items) {
+    if (items.isEmpty) return items;
+    final now = DateTime.now();
+    DateTime start;
+    DateTime end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    switch (_selectedRange) {
+      case HistoryRange.day1:
+        start = DateTime(now.year, now.month, now.day);
+        break;
+      case HistoryRange.day3:
+        start = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 2));
+        break;
+      case HistoryRange.week:
+        start = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+        break;
+      case HistoryRange.month:
+        start = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 29));
+        break;
+      case HistoryRange.custom:
+        if (_customRange == null) return items;
+        start = DateTime(_customRange!.start.year, _customRange!.start.month, _customRange!.start.day);
+        end = DateTime(_customRange!.end.year, _customRange!.end.month, _customRange!.end.day, 23, 59, 59);
+        break;
+    }
+
+    return items.where((t) {
+      final ts = t.timestamp;
+      return !ts.isBefore(start) && !ts.isAfter(end);
+    }).toList();
+  }
+
+  String _formatRemaining(TimerState timerState, Habit habit) {
+    final remaining = timerState is TimerPaused ? timerState.remainingSeconds : 0;
+    final mm = (remaining ~/ 60).toString().padLeft(2, '0');
+    final ss = (remaining % 60).toString().padLeft(2, '0');
+    if (habit.unit != null && habit.unit!.contains('час')) {
+      final hours = (remaining ~/ 3600).toString().padLeft(2, '0');
+      final min = ((remaining % 3600) ~/ 60).toString().padLeft(2, '0');
+      return '$hours:$min:${ss}';
+    }
+    return '$mm:$ss';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     return BlocProvider.value(
       value: context.read<HabitBloc>(),
@@ -32,7 +103,7 @@ class HabitDetailScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.of(context).pushNamed(
                   '/habit-form',
-                  arguments: habitId,
+                  arguments: widget.habitId,
                 );
               },
             ),
@@ -55,7 +126,7 @@ class HabitDetailScreen extends StatelessWidget {
             // Load habit detail if not loaded
             if (state is! HabitDetailLoaded) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                context.read<HabitBloc>().add(LoadHabitDetail(habitId));
+                context.read<HabitBloc>().add(LoadHabitDetail(widget.habitId));
               });
             }
 
@@ -73,6 +144,7 @@ class HabitDetailScreen extends StatelessWidget {
   ) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final filteredTracking = _filterTracking(tracking);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -88,6 +160,56 @@ class HabitDetailScreen extends StatelessWidget {
             habit.minimalAction,
             style: theme.textTheme.bodyLarge,
           ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final advice =
+                  await _adviceService.getAdviceForHabit(habit.id, habit.name);
+              if (!mounted) return;
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Совет по привычке'),
+                  content: Text(advice),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Понятно'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            icon: const Icon(Icons.lightbulb_outline),
+            label: const Text('Совет'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showGoalDialog(context),
+            icon: const Icon(Icons.flag_outlined),
+            label: const Text('Цель'),
+          ),
+          if (_currentGoal != null && _currentGoal!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Текущая цель: $_currentGoal',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    ..._goalService
+                        .buildPlanForGoal(_currentGoal!)
+                        .map((step) => Text('• $step')),
+                  ],
+                ),
+              ),
+            ),
+          ],
           // Показываем цель если есть
           if (habit.goalType != null && habit.targetValue != null) ...[
             const SizedBox(height: 16),
@@ -117,21 +239,10 @@ class HabitDetailScreen extends StatelessWidget {
           // Показываем информацию о паузе если есть активный таймер
           BlocBuilder<TimerBloc, TimerState>(
             builder: (context, timerState) {
-              if (timerState is TimerPaused && habit.goalType == 'time') {
-                final remaining = timerState.remainingSeconds;
-                String remainingText = '';
-                if (habit.unit != null) {
-                  if (habit.unit!.contains('минут')) {
-                    remainingText = '${remaining ~/ 60} ${habit.unit}';
-                  } else if (habit.unit!.contains('час')) {
-                    remainingText = '${remaining ~/ 3600} ${habit.unit}';
-                  } else {
-                    remainingText = '$remaining ${habit.unit}';
-                  }
-                } else {
-                  remainingText = '${remaining ~/ 60} минут';
-                }
-                
+              if (timerState is TimerPaused &&
+                  timerState.habitId == habit.id &&
+                  habit.goalType == 'time') {
+                final remainingText = _formatRemaining(timerState, habit);
                 return Column(
                   children: [
                     Container(
@@ -145,7 +256,7 @@ class HabitDetailScreen extends StatelessWidget {
                         children: [
                           const Icon(Icons.pause_circle_outline),
                           const SizedBox(width: 8),
-                          Text('Осталось: $remainingText'),
+                          Text('Пауза. Осталось: $remainingText'),
                         ],
                       ),
                     ),
@@ -156,58 +267,100 @@ class HabitDetailScreen extends StatelessWidget {
               return const SizedBox.shrink();
             },
           ),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pushNamed(
-                  '/timer',
-                  arguments: habitId,
-                );
-              },
-              icon: const Icon(Icons.play_circle_outline),
-              label: Text(
-                habit.goalType == 'time' && habit.targetValue != null
-                    ? 'Начать на ${habit.targetValue} ${habit.unit ?? ""}'
-                    : l10n.start30Seconds,
-              ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+          if (habit.goalType == 'time') ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pushNamed(
+                    '/timer',
+                    arguments: widget.habitId,
+                  );
+                },
+                icon: const Icon(Icons.play_circle_outline),
+                label: BlocBuilder<TimerBloc, TimerState>(
+                  builder: (context, timerState) {
+                    if (timerState is TimerPaused &&
+                        timerState.habitId == habit.id &&
+                        habit.goalType == 'time') {
+                      return Text('Продолжить (${_formatRemaining(timerState, habit)})');
+                    }
+                    return Text(
+                      habit.goalType == 'time' && habit.targetValue != null
+                          ? 'Начать на ${habit.targetValue} ${habit.unit ?? ""}'
+                          : l10n.start30Seconds,
+                    );
+                  },
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 32),
+            const SizedBox(height: 32),
+          ],
           Text(
             l10n.history,
             style: theme.textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
-          if (tracking.isEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildRangeChip('1 день', HistoryRange.day1),
+              _buildRangeChip('3 дня', HistoryRange.day3),
+              _buildRangeChip('Неделя', HistoryRange.week),
+              _buildRangeChip('Месяц', HistoryRange.month),
+              ActionChip(
+                label: Text(
+                  _selectedRange == HistoryRange.custom && _customRange != null
+                      ? '${_customRange!.start.day}.${_customRange!.start.month} - ${_customRange!.end.day}.${_customRange!.end.month}'
+                      : 'Свой период',
+                ),
+                onPressed: () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime.now().subtract(const Duration(days: 365 * 3)),
+                    lastDate: DateTime.now(),
+                    currentDate: DateTime.now(),
+                  );
+                  if (range != null && mounted) {
+                    setState(() {
+                      _customRange = range;
+                      _selectedRange = HistoryRange.custom;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (filteredTracking.isEmpty)
             Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.history,
-                    size: 64,
-                    color: theme.colorScheme.primary.withOpacity(0.5),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    l10n.noTrackingYet,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.startTracking,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  tracking.isEmpty ? l10n.noTrackingYet : 'За выбранный период записей нет',
+                ),
               ),
             )
           else
-            ...tracking.map((t) => _buildTrackingItem(context, t)),
+            ...filteredTracking.map((t) => _buildTrackingItem(context, t)),
         ],
       ),
+    );
+  }
+
+  Widget _buildRangeChip(String label, HistoryRange range) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: _selectedRange == range,
+      onSelected: (_) {
+        setState(() {
+          _selectedRange = range;
+        });
+      },
     );
   }
 
@@ -242,7 +395,7 @@ class HabitDetailScreen extends StatelessWidget {
           isToday ? 'Сегодня' : habit_date_utils.DateUtils.getDayOfWeekName(date),
         ),
         subtitle: Text(
-          '${date.day}.${date.month}.${date.year}',
+          '${date.day}.${date.month}.${date.year}  ${tracking.timestamp.hour.toString().padLeft(2, '0')}:${tracking.timestamp.minute.toString().padLeft(2, '0')}',
         ),
         trailing: Text(
           statusText,
@@ -294,6 +447,77 @@ class HabitDetailScreen extends StatelessWidget {
             child: const Text('Сохранить'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showGoalDialog(BuildContext context) async {
+    final controller = TextEditingController(text: _currentGoal ?? '');
+    String selectedTemplate = HabitGoalService.readingGoalTemplates.first;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: const Text('Цель привычки'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Шаблоны целей:'),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedTemplate,
+                  items: HabitGoalService.readingGoalTemplates
+                      .map(
+                        (t) => DropdownMenuItem<String>(
+                          value: t,
+                          child: Text(t),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setModalState(() {
+                      selectedTemplate = value;
+                    });
+                    controller.text = value;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Моя цель',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final goal = controller.text.trim();
+                if (goal.isEmpty) return;
+                await _goalService.saveGoal(widget.habitId, goal);
+                if (mounted) {
+                  setState(() {
+                    _currentGoal = goal;
+                  });
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        ),
       ),
     );
   }

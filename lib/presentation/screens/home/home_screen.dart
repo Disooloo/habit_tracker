@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:habit_tracker/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../bloc/habit/habit_bloc.dart';
 import '../../bloc/habit/habit_event.dart';
 import '../../bloc/habit/habit_state.dart';
+import '../../bloc/timer/timer_bloc.dart';
+import '../../bloc/timer/timer_state.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/date_utils.dart' as habit_date_utils;
 import '../../widgets/habit_card.dart';
@@ -11,6 +14,9 @@ import '../habit_detail/habit_detail_screen.dart';
 import '../../../domain/entities/habit.dart';
 import '../../../domain/entities/habit_tracking.dart';
 import '../../../domain/repositories/habit_repository.dart';
+import '../../../services/in_app_notification_service.dart';
+import '../../../services/notification_service.dart';
+import '../../../services/subscription_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,12 +26,105 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  List<Habit> _cachedHabits = const [];
+  String? _subscriptionHeaderText;
+  bool _expirationHandledThisSession = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HabitBloc>().add(const LoadHabits());
+      _setupOpenSessionNotifications();
+      _refreshSubscriptionHeader();
     });
+  }
+
+  Future<void> _setupOpenSessionNotifications() async {
+    final inAppService = InAppNotificationService();
+    await inAppService.markAppOpenedAndHandleInactivity();
+
+    final prefs = await SharedPreferences.getInstance();
+    final notificationsEnabled =
+        prefs.getBool(AppConstants.keyNotificationsEnabled) ?? false;
+
+    if (notificationsEnabled) {
+      await NotificationService().scheduleInactivityReminder48h();
+      await NotificationService().scheduleDailyDayStartReminder();
+    }
+  }
+
+  Future<void> _refreshSubscriptionHeader() async {
+    final service = SubscriptionService();
+    final plan = await service.getActivePlan();
+    final until = await service.getActiveUntil();
+    if (!mounted) return;
+    setState(() {
+      if (plan != null && until != null && until.isAfter(DateTime.now())) {
+        _subscriptionHeaderText =
+            '$plan до ${until.day.toString().padLeft(2, '0')}.${until.month.toString().padLeft(2, '0')}.${until.year}';
+      } else {
+        _subscriptionHeaderText = 'Бесплатная подписка';
+      }
+    });
+  }
+
+  Future<void> _handleExpiredSubscriptionIfNeeded(List<Habit> habits) async {
+    if (_expirationHandledThisSession) return;
+    final prefs = await SharedPreferences.getInstance();
+    final untilRaw = prefs.getString(AppConstants.keySubscriptionUntil);
+    if (untilRaw == null || untilRaw.isEmpty) return;
+    final until = DateTime.tryParse(untilRaw);
+    if (until == null || until.isAfter(DateTime.now())) return;
+
+    final token = until.toIso8601String();
+    final handledToken = prefs.getString(AppConstants.keySubscriptionExpiredHandled);
+    if (handledToken == token) return;
+
+    _expirationHandledThisSession = true;
+    await prefs.setBool(AppConstants.keySubscriptionActive, false);
+    await prefs.remove(AppConstants.keySubscriptionPlan);
+    await prefs.setString(AppConstants.keySubscriptionExpiredHandled, token);
+    await _refreshSubscriptionHeader();
+
+    if (!mounted) return;
+    final overLimit = habits.length - AppConstants.freeHabitLimit;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Подписка завершилась'),
+        content: Text(
+          overLimit > 0
+              ? 'Подписка истекла. Можно оставить до ${AppConstants.freeHabitLimit} привычек. Сейчас лишних: $overLimit.'
+              : 'Подписка истекла. Вы на бесплатном тарифе.',
+        ),
+        actions: [
+          if (overLimit > 0)
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final sorted = [...habits]
+                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                final toDelete = sorted.skip(AppConstants.freeHabitLimit);
+                for (final h in toDelete) {
+                  await context.read<HabitBloc>().repository.deleteHabit(h.id);
+                }
+                if (mounted) {
+                  context.read<HabitBloc>().add(const LoadHabits());
+                }
+              },
+              child: const Text('Оставить базовые'),
+            ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pushNamed('/subscription');
+            },
+            child: const Text('Продлить'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -43,19 +142,43 @@ class _HomeScreenState extends State<HomeScreen> {
               l10n.canStartSmall,
               style: theme.textTheme.bodySmall,
             ),
+            if (_subscriptionHeaderText != null)
+              Text(
+                _subscriptionHeaderText!,
+                style: theme.textTheme.labelSmall,
+              ),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.bar_chart),
             onPressed: () {
-              Navigator.of(context).pushNamed('/statistics');
+              Navigator.of(context)
+                  .pushNamed('/statistics')
+                  .then((_) => context.read<HabitBloc>().add(const LoadHabits()));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () {
+              Navigator.of(context).pushNamed('/notifications');
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.menu_book_outlined),
+            onPressed: () {
+              Navigator.of(context).pushNamed('/diary');
             },
           ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              Navigator.of(context).pushNamed('/settings');
+              Navigator.of(context)
+                  .pushNamed('/settings')
+                  .then((_) {
+                context.read<HabitBloc>().add(const LoadHabits());
+                _refreshSubscriptionHeader();
+              });
             },
           ),
         ],
@@ -95,8 +218,17 @@ class _HomeScreenState extends State<HomeScreen> {
             List<Habit> habits = [];
             if (state is HabitLoaded) {
               habits = state.habits;
+              _cachedHabits = habits;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _refreshSubscriptionHeader();
+                _handleExpiredSubscriptionIfNeeded(habits);
+              });
             } else if (state is HabitLoading && state.habits.isNotEmpty) {
               habits = state.habits; // Используем предыдущие привычки при загрузке
+            } else if (state is HabitDetailLoaded && _cachedHabits.isNotEmpty) {
+              habits = _cachedHabits;
+            } else if (_cachedHabits.isNotEmpty) {
+              habits = _cachedHabits;
             }
 
             if (habits.isEmpty) {
@@ -137,7 +269,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.of(context).pushNamed('/habit-form');
+          Navigator.of(context)
+              .pushNamed('/habit-form')
+              .then((_) => context.read<HabitBloc>().add(const LoadHabits()));
         },
         child: const Icon(Icons.add),
       ),
@@ -202,46 +336,161 @@ class _HabitsListWidgetState extends State<_HabitsListWidget> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: widget.habits.length,
-      itemBuilder: (context, index) {
-        final habit = widget.habits[index];
-        final todayTracking = _todayTracking[habit.id];
+  int _calculateSuggestedTarget(int currentTarget) {
+    // Мягкое постепенное увеличение: минимум +1, либо +10% (округляя вниз).
+    final increase = (currentTarget * 0.1).floor().clamp(1, 999999);
+    return currentTarget + increase;
+  }
 
-        return HabitCard(
-          key: ValueKey('habit_${habit.id}_${todayTracking?.currentValue ?? 0}'),
-          habit: habit,
-          todayTracking: todayTracking,
-          onTap: () {
-            Navigator.of(context).push(
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) =>
-                    HabitDetailScreen(habitId: habit.id),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  return SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(1.0, 0.0),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  );
-                },
-                transitionDuration: const Duration(milliseconds: 300),
-              ),
-            );
-          },
-          onStatusChanged: (status) async {
+  int? _resolveCurrentValueForStatus({
+    required Habit habit,
+    required HabitTracking? tracking,
+    required String status,
+  }) {
+    if (habit.targetValue == null) {
+      return null;
+    }
+
+    final target = habit.targetValue!;
+    final existing = tracking?.currentValue ?? 0;
+
+    if (status == AppConstants.statusDone) {
+      return target;
+    }
+    if (status == AppConstants.statusPartial) {
+      final partialByTarget = (target * 0.5).ceil();
+      return partialByTarget > existing ? partialByTarget : existing;
+    }
+    return 0;
+  }
+
+  void _showGradualIncreaseSuggestion(Habit habit) {
+    final currentTarget = habit.targetValue;
+    if (currentTarget == null) return;
+
+    final suggestedTarget = _calculateSuggestedTarget(currentTarget);
+    final unit = habit.unit == null ? '' : ' ${habit.unit}';
+    final messenger = ScaffoldMessenger.of(context);
+
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Отлично! Завтра можно попробовать $suggestedTarget$unit'),
+        action: SnackBarAction(
+          label: 'Применить',
+          onPressed: () {
             context.read<HabitBloc>().add(
-                  TrackHabitEvent(
-                    habitId: habit.id,
-                    status: status,
+                  UpdateHabitEvent(
+                    habit.copyWith(targetValue: suggestedTarget),
                   ),
                 );
-            // Обновляем локальное состояние после небольшой задержки
-            await Future.delayed(const Duration(milliseconds: 200));
-            _loadTodayTracking();
+          },
+        ),
+      ),
+    );
+  }
+
+  static const List<String> _completionPraise = [
+    'Отличный темп! Сегодня закрыто как надо.',
+    'Супер! Вы завершили привычку на сегодня.',
+    'Классный результат: цель на сегодня выполнена.',
+    'Вы молодец! Еще один стабильный день в копилку.',
+    'Отличная дисциплина, так держать!',
+  ];
+
+  void _showCompletionPraise(Habit habit) {
+    final message = _completionPraise[DateTime.now().millisecond % _completionPraise.length];
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    InAppNotificationService().addMessage('${habit.name}: $message');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final doneCount = _todayTracking.values
+        .where((t) => t?.status == AppConstants.statusDone)
+        .length;
+    final partialCount = _todayTracking.values
+        .where((t) => t?.status == AppConstants.statusPartial)
+        .length;
+    final total = widget.habits.length;
+
+    return BlocBuilder<TimerBloc, TimerState>(
+      builder: (context, timerState) {
+        return ListView.builder(
+          itemCount: widget.habits.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Статистика за сегодня: $doneCount/$total выполнено, $partialCount в процессе',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            final habit = widget.habits[index - 1];
+            final todayTracking = _todayTracking[habit.id];
+            final pausedRemainingSeconds = timerState is TimerPaused && timerState.habitId == habit.id
+                ? timerState.remainingSeconds
+                : null;
+
+            return HabitCard(
+              key: ValueKey('habit_${habit.id}_${todayTracking?.currentValue ?? 0}'),
+              habit: habit,
+              todayTracking: todayTracking,
+              pausedRemainingSeconds: pausedRemainingSeconds,
+              onTap: () {
+                Navigator.of(context)
+                    .push(
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            HabitDetailScreen(habitId: habit.id),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(1.0, 0.0),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          );
+                        },
+                        transitionDuration: const Duration(milliseconds: 300),
+                      ),
+                    )
+                    .then((_) => context.read<HabitBloc>().add(const LoadHabits()));
+              },
+              onStatusChanged: (status) async {
+                final currentValue = _resolveCurrentValueForStatus(
+                  habit: habit,
+                  tracking: todayTracking,
+                  status: status,
+                );
+                context.read<HabitBloc>().add(
+                      TrackHabitEvent(
+                        habitId: habit.id,
+                        status: status,
+                        currentValue: currentValue,
+                      ),
+                    );
+                if (status == AppConstants.statusDone) {
+                  _showGradualIncreaseSuggestion(habit);
+                  _showCompletionPraise(habit);
+                }
+                await Future.delayed(const Duration(milliseconds: 200));
+                _loadTodayTracking();
+              },
+            );
           },
         );
       },

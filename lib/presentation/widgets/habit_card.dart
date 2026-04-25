@@ -5,16 +5,17 @@ import '../../../domain/entities/habit.dart';
 import '../../../domain/entities/habit_tracking.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/date_utils.dart' as habit_date_utils;
 import '../bloc/habit/habit_bloc.dart';
 import '../bloc/habit/habit_event.dart';
 import '../screens/timer/timer_screen.dart';
+import '../../services/in_app_notification_service.dart';
 
 class HabitCard extends StatelessWidget {
   final Habit habit;
   final HabitTracking? todayTracking; // Статус на сегодня
   final VoidCallback? onTap;
   final Function(String)? onStatusChanged; // status: 'done', 'partial', 'not_done'
+  final int? pausedRemainingSeconds;
 
   const HabitCard({
     super.key,
@@ -22,7 +23,15 @@ class HabitCard extends StatelessWidget {
     this.todayTracking,
     this.onTap,
     this.onStatusChanged,
+    this.pausedRemainingSeconds,
   });
+
+  static const List<String> _aboveNormMessages = [
+    'Вы выполнили выше нормы, вы молодец!',
+    'Супер! Сегодня результат выше плана.',
+    'Отличная работа: вы сделали больше, чем запланировали.',
+    'Так держать! Превышение цели - это сильный прогресс.',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +100,7 @@ class HabitCard extends StatelessWidget {
                         );
                       },
                       icon: const Icon(Icons.play_circle_outline),
-                      label: Text(_getTimerButtonText(habit)),
+                      label: Text(_getTimerButtonText(habit, pausedRemainingSeconds)),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -329,6 +338,15 @@ class HabitCard extends StatelessWidget {
         currentValue: newValue,
       ),
     );
+
+    if (habit.targetValue != null && newValue > habit.targetValue!) {
+      final idx = DateTime.now().millisecond % _aboveNormMessages.length;
+      final message = _aboveNormMessages[idx];
+      InAppNotificationService().addMessage('${habit.name}: $message');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 
   void _onProgressChanged(
@@ -347,7 +365,12 @@ class HabitCard extends StatelessWidget {
         );
   }
 
-  String _getTimerButtonText(Habit habit) {
+  String _getTimerButtonText(Habit habit, int? pausedRemainingSeconds) {
+    if (pausedRemainingSeconds != null && pausedRemainingSeconds > 0) {
+      final mm = (pausedRemainingSeconds ~/ 60).toString().padLeft(2, '0');
+      final ss = (pausedRemainingSeconds % 60).toString().padLeft(2, '0');
+      return 'Продолжить ($mm:$ss)';
+    }
     if (habit.goalType == 'time' && habit.targetValue != null) {
       final value = habit.targetValue!;
       final unit = habit.unit ?? 'минут';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:habit_tracker/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../bloc/habit/habit_bloc.dart';
 import '../../bloc/habit/habit_event.dart';
 import '../../bloc/habit/habit_state.dart';
@@ -9,8 +10,9 @@ import '../../../domain/usecases/get_habit_by_id.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/habit_suggestions.dart';
 import '../../../services/subscription_service.dart';
-import '../../../domain/repositories/habit_repository.dart';
 import '../../../data/repositories/habit_repository_impl.dart';
+import '../../../services/notification_service.dart';
+import '../../../services/in_app_notification_service.dart';
 
 class HabitFormScreen extends StatefulWidget {
   final int? habitId; // null for create, non-null for edit
@@ -25,7 +27,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _minimalActionController = TextEditingController();
-  String _frequency = AppConstants.frequencyDaily;
+  String _frequency = AppConstants.frequencyDailyOnce;
   bool _hasReminder = false;
   TimeOfDay? _reminderTime;
   
@@ -33,6 +35,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
   String? _goalType; // 'quantity', 'time', or null
   final _targetValueController = TextEditingController();
   String? _timeUnit; // 'seconds', 'minutes', 'hours' для времени
+  String _habitKind = 'build'; // build or quit
 
   bool _isLoading = false;
   Habit? _existingHabit;
@@ -43,6 +46,23 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
     if (widget.habitId != null) {
       _loadHabit();
     }
+  }
+
+  Future<void> _syncHabitReminder(Habit habit) async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool(AppConstants.keyNotificationsEnabled) ?? false;
+    if (!enabled) return;
+
+    final service = NotificationService();
+    if (habit.reminderTime == null || habit.reminderTime!.isEmpty) {
+      await service.cancelHabitReminder(habit.id);
+      return;
+    }
+    await service.scheduleHabitReminder(
+      habitId: habit.id,
+      habitName: habit.name,
+      timeString: habit.reminderTime,
+    );
   }
 
   Future<void> _loadHabit() async {
@@ -182,7 +202,22 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
     return BlocListener<HabitBloc, HabitState>(
       listener: (context, state) {
         if (state is HabitCreated || state is HabitUpdated) {
-          Navigator.of(context).pop();
+          final savedHabit = state is HabitCreated ? state.habit : (state as HabitUpdated).habit;
+          if (state is HabitCreated) {
+            InAppNotificationService().addMessage(
+              'Привычка "${savedHabit.name}" создана. Отличный старт!',
+            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Привычка "${savedHabit.name}" создана')),
+              );
+            }
+          }
+          _syncHabitReminder(savedHabit).then((_) {
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
+          });
         } else if (state is HabitError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message)),
@@ -200,6 +235,21 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
             children: [
               // Предложения привычек (только при создании)
               if (widget.habitId == null) ...[
+                Text('Тип привычки', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'build', label: Text('Развивать')),
+                    ButtonSegment(value: 'quit', label: Text('Отказаться')),
+                  ],
+                  selected: {_habitKind},
+                  onSelectionChanged: (Set<String> value) {
+                    setState(() {
+                      _habitKind = value.first;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
                 _buildSuggestionsSection(context),
                 const SizedBox(height: 24),
                 const Divider(),
@@ -341,12 +391,16 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
               SegmentedButton<String>(
                 segments: [
                   ButtonSegment(
-                    value: AppConstants.frequencyDaily,
-                    label: Text(l10n.daily),
+                    value: AppConstants.frequencyDailyOnce,
+                    label: const Text('1 раз в день'),
+                  ),
+                  ButtonSegment(
+                    value: AppConstants.frequencyDailyMulti,
+                    label: const Text('Несколько раз в день'),
                   ),
                   ButtonSegment(
                     value: AppConstants.frequencyWeekly,
-                    label: Text(l10n.weekly),
+                    label: const Text('По дням недели'),
                   ),
                 ],
                 selected: {_frequency},
@@ -405,20 +459,22 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
 
   Widget _buildSuggestionsSection(BuildContext context) {
     final theme = Theme.of(context);
-    final categories = HabitSuggestions.categories;
+    final categories = HabitSuggestions.categoriesByKind(_habitKind);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Готовые привычки',
+          _habitKind == 'build'
+              ? 'Готовые полезные привычки'
+              : 'Готовые привычки для отказа',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 12),
         ...categories.map((category) {
-          final suggestions = HabitSuggestions.getByCategory(category);
+          final suggestions = HabitSuggestions.getByCategory(category, _habitKind);
           return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ExpansionTile(
@@ -438,7 +494,31 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                     setState(() {
                       _nameController.text = suggestion.name;
                       _minimalActionController.text = suggestion.minimalAction;
+                      _frequency = suggestion.frequency == AppConstants.frequencyDaily
+                          ? AppConstants.frequencyDailyOnce
+                          : suggestion.frequency;
+                      _goalType = suggestion.goalType;
+                      if (suggestion.targetValue != null) {
+                        _targetValueController.text = suggestion.targetValue.toString();
+                      } else {
+                        _targetValueController.clear();
+                      }
+
+                      if (suggestion.goalType == 'time') {
+                        if ((suggestion.unit ?? '').contains('час')) {
+                          _timeUnit = 'hours';
+                        } else if ((suggestion.unit ?? '').contains('сек')) {
+                          _timeUnit = 'seconds';
+                        } else {
+                          _timeUnit = 'minutes';
+                        }
+                      } else {
+                        _timeUnit = null;
+                      }
                     });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Совет: ${suggestion.tip}')),
+                    );
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -463,6 +543,11 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurface.withOpacity(0.7),
                                 ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Совет: ${suggestion.tip}',
+                                style: theme.textTheme.bodySmall,
                               ),
                             ],
                           ),

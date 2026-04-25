@@ -63,6 +63,13 @@ class HabitRepositoryImpl implements HabitRepository {
   }
 
   @override
+  Future<void> deleteAllHabits() async {
+    final db = await _database.database;
+    await db.delete('habit_tracking');
+    await db.delete('habits');
+  }
+
+  @override
   Future<int> getHabitCount() async {
     final db = await _database.database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM habits');

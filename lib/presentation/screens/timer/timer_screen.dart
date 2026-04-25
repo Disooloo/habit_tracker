@@ -10,6 +10,7 @@ import '../../bloc/habit/habit_state.dart';
 import '../../../domain/entities/habit.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../widgets/timer_widget.dart';
+import '../../../services/in_app_notification_service.dart';
 
 class TimerScreen extends StatefulWidget {
   final int habitId;
@@ -34,11 +35,26 @@ class _TimerScreenState extends State<TimerScreen> {
 
   Habit? _currentHabit;
   int _lastUpdatedSeconds = -1;
+  static const List<String> _finishMessages = [
+    'Прекрасная работа! Сегодня вы закрыли цель.',
+    'Супер! Еще один выполненный день.',
+    'Отличный результат, вы в ритме!',
+    'Класс! Вы завершили привычку на сегодня.',
+  ];
 
   void _initializeTimer(Habit habit) {
     if (_timerInitialized) return;
-    _timerInitialized = true;
     _currentHabit = habit;
+
+    final timerState = context.read<TimerBloc>().state;
+    if ((timerState is TimerRunning || timerState is TimerPaused || timerState is TimerCompleted) &&
+        ((timerState is TimerRunning && timerState.habitId == habit.id) ||
+            (timerState is TimerPaused && timerState.habitId == habit.id) ||
+            (timerState is TimerCompleted && timerState.habitId == habit.id))) {
+      _timerInitialized = true;
+      return;
+    }
+    _timerInitialized = true;
 
     int timerSeconds = AppConstants.quickStartTimerSeconds; // По умолчанию 30 секунд
     
@@ -66,7 +82,10 @@ class _TimerScreenState extends State<TimerScreen> {
       ),
     );
     
-    context.read<TimerBloc>().add(TimerStarted(timerSeconds));
+    context.read<TimerBloc>().add(TimerStarted(
+          habitId: widget.habitId,
+          durationSeconds: timerSeconds,
+        ));
   }
 
   void _saveProgressOnPause(BuildContext context, TimerPaused state) {
@@ -152,12 +171,23 @@ class _TimerScreenState extends State<TimerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.start30Seconds),
+        actions: [
+          IconButton(
+            tooltip: 'Сбросить',
+            onPressed: () {
+              context.read<TimerBloc>().add(const TimerStopped());
+              Navigator.of(context).maybePop();
+            },
+            icon: const Icon(Icons.restart_alt),
+          ),
+        ],
       ),
       body: BlocListener<TimerBloc, TimerState>(
         listener: (context, state) {
           if (state is TimerFinished) {
-            // Возвращаемся на главную
-            Navigator.of(context).popUntil((route) => route.isFirst);
+            // Возвращаемся только на предыдущий экран,
+            // чтобы кнопка "назад" вела по реальному стеку.
+            Navigator.of(context).maybePop();
           }
           // Обновляем прогресс при тике таймера
           if (state is TimerRunning) {
@@ -262,13 +292,14 @@ class _TimerScreenState extends State<TimerScreen> {
                       final currentState = context.read<TimerBloc>().state;
                       if (currentState is TimerRunning) {
                         _saveProgressOnPause(context, TimerPaused(
+                          habitId: currentState.habitId,
                           remainingSeconds: currentState.remainingSeconds,
                           totalSeconds: currentState.totalSeconds,
                         ));
                       }
                       context.read<TimerBloc>().add(const TimerStopped());
-                      // Возвращаемся на главную
-                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      // Возвращаемся только на предыдущий экран.
+                      Navigator.of(context).maybePop();
                     },
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -364,6 +395,11 @@ class _TimerScreenState extends State<TimerScreen> {
                           status: AppConstants.statusDone,
                         ),
                       );
+                  final message = _finishMessages[
+                      DateTime.now().millisecond % _finishMessages.length];
+                  InAppNotificationService().addMessage(message);
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(message)));
                   // Continue timer
                   context.read<TimerBloc>().add(const TimerContinue());
                 },
@@ -383,6 +419,11 @@ class _TimerScreenState extends State<TimerScreen> {
                           status: AppConstants.statusDone,
                         ),
                       );
+                  final message = _finishMessages[
+                      DateTime.now().millisecond % _finishMessages.length];
+                  InAppNotificationService().addMessage(message);
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(message)));
                   // Finish
                   context.read<TimerBloc>().add(const TimerFinish());
                 },

@@ -26,6 +26,12 @@ import 'presentation/screens/habit_detail/habit_detail_screen.dart';
 import 'presentation/screens/timer/timer_screen.dart';
 import 'presentation/screens/statistics/statistics_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
+import 'presentation/screens/settings/subscription_screen.dart';
+import 'presentation/screens/settings/feedback_screen.dart';
+import 'presentation/screens/settings/privacy_policy_screen.dart';
+import 'presentation/screens/settings/terms_of_service_screen.dart';
+import 'presentation/screens/notifications/notifications_screen.dart';
+import 'presentation/screens/diary/diary_screen.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -127,6 +133,12 @@ class MyApp extends StatelessWidget {
             return StatisticsScreen(habitId: args as int?);
           },
           '/settings': (context) => const SettingsScreen(),
+          '/subscription': (context) => const SubscriptionScreen(),
+          '/feedback': (context) => const FeedbackScreen(),
+          '/privacy-policy': (context) => const PrivacyPolicyScreen(),
+          '/terms-of-service': (context) => const TermsOfServiceScreen(),
+          '/notifications': (context) => const NotificationsScreen(),
+          '/diary': (context) => const DiaryScreen(),
         },
       ),
     );

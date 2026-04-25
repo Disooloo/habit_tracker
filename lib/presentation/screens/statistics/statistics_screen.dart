@@ -37,7 +37,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       appBar: AppBar(
         title: Text(l10n.statistics),
       ),
-      body: BlocBuilder<HabitBloc, HabitState>(
+      body: BlocListener<HabitBloc, HabitState>(
+        listener: (context, state) {
+          if (state is HabitTracked || state is HabitUpdated || state is HabitDeleted) {
+            if (_selectedHabitId == null) {
+              setState(() {});
+              return;
+            }
+            context.read<StatisticsBloc>().add(LoadStatistics(_selectedHabitId!));
+          }
+        },
+        child: BlocBuilder<HabitBloc, HabitState>(
         builder: (context, habitState) {
           // Get habits list for selection
           List<Habit> habits = [];
@@ -45,16 +55,27 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             habits = habitState.habits;
           }
 
-          // If no habit selected and we have habits, select first one
-          if (_selectedHabitId == null && habits.isNotEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              setState(() {
-                _selectedHabitId = habits.first.id;
-              });
-            });
+          if (habits.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.bar_chart,
+                    size: 80,
+                    color: theme.colorScheme.primary.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.noHabitsYet,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                ],
+              ),
+            );
           }
 
-          // If we have a selected habit, load its statistics
+          // Habit selected -> per habit statistics
           if (_selectedHabitId != null) {
             return BlocBuilder<StatisticsBloc, StatisticsState>(
               builder: (context, state) {
@@ -86,25 +107,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             );
           }
 
-          // No habits
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.bar_chart,
-                  size: 80,
-                  color: theme.colorScheme.primary.withOpacity(0.5),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.noHabitsYet,
-                  style: theme.textTheme.titleLarge,
-                ),
-              ],
-            ),
+          // Overall statistics for all habits
+          return FutureBuilder<Map<String, num>>(
+            future: _loadOverallStats(habits),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return _buildOverallContent(context, habits, snapshot.data!);
+            },
           );
         },
+      ),
       ),
     );
   }
@@ -123,25 +137,32 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Habit selector
-          if (habits.length > 1)
-            DropdownButtonFormField<int>(
-              value: _selectedHabitId,
-              decoration: const InputDecoration(
-                labelText: 'Выберите привычку',
+          DropdownButtonFormField<int?>(
+            initialValue: _selectedHabitId,
+            decoration: const InputDecoration(
+              labelText: 'Режим статистики',
+            ),
+            items: [
+              const DropdownMenuItem<int?>(
+                value: null,
+                child: Text('Все привычки'),
               ),
-              items: habits.map((habit) {
-                return DropdownMenuItem<int>(
+              ...habits.map((habit) {
+                return DropdownMenuItem<int?>(
                   value: habit.id,
                   child: Text(habit.name),
                 );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedHabitId = value;
-                });
-                context.read<StatisticsBloc>().add(LoadStatistics(value!));
-              },
-            ),
+              }),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedHabitId = value;
+              });
+              if (value != null) {
+                context.read<StatisticsBloc>().add(LoadStatistics(value));
+              }
+            },
+          ),
           const SizedBox(height: 24),
           // Days with attempt
           StatisticsCard(
@@ -166,6 +187,25 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             icon: Icons.refresh,
             color: theme.colorScheme.primary,
           ),
+          const SizedBox(height: 16),
+          StatisticsCard(
+            title: 'Выше нормы',
+            value: '${result.aboveNormCount} раз',
+            icon: Icons.trending_up,
+            color: Colors.green,
+          ),
+          if (result.aboveNormCount > 0) ...[
+            const SizedBox(height: 10),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  'Вы часто делаете выше нормы. Можно немного повысить порог цели.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 32),
           // Weekday chart
           if (result.weekdayStats.isNotEmpty) ...[
@@ -230,6 +270,109 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             );
           }),
         ),
+      ),
+    );
+  }
+
+  Future<Map<String, num>> _loadOverallStats(List<Habit> habits) async {
+    final repository = context.read<HabitBloc>().repository;
+    int done = 0;
+    int partial = 0;
+    int notDone = 0;
+    int attempts = 0;
+    int totalDays = 0;
+    int aboveNorm = 0;
+    for (final habit in habits) {
+      final stats = await repository.getTrackingStatsByHabitId(habit.id);
+      done += stats['done'] ?? 0;
+      partial += stats['partial'] ?? 0;
+      notDone += stats['not_done'] ?? 0;
+      attempts += await repository.getDaysWithAttempt(habit.id);
+      totalDays += await repository.getTotalDays(habit.id);
+      if (habit.targetValue != null) {
+        final records = await repository.getTrackingByHabitId(habit.id);
+        aboveNorm += records.where((r) => (r.currentValue ?? 0) > habit.targetValue!).length;
+      }
+    }
+    return {
+      'done': done,
+      'partial': partial,
+      'not_done': notDone,
+      'attempts': attempts,
+      'totalDays': totalDays,
+      'rate': totalDays == 0 ? 0 : (attempts / totalDays) * 100,
+      'aboveNorm': aboveNorm,
+    };
+  }
+
+  Widget _buildOverallContent(
+    BuildContext context,
+    List<Habit> habits,
+    Map<String, num> data,
+  ) {
+    final theme = Theme.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<int?>(
+            initialValue: _selectedHabitId,
+            decoration: const InputDecoration(labelText: 'Режим статистики'),
+            items: [
+              const DropdownMenuItem<int?>(
+                value: null,
+                child: Text('Все привычки'),
+              ),
+              ...habits.map(
+                (h) => DropdownMenuItem<int?>(
+                  value: h.id,
+                  child: Text(h.name),
+                ),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() => _selectedHabitId = value);
+              if (value != null) {
+                context.read<StatisticsBloc>().add(LoadStatistics(value));
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          StatisticsCard(
+            title: 'Всего выполнено',
+            value: '${data['done']?.toInt() ?? 0}',
+            icon: Icons.check_circle_outline,
+            color: theme.colorScheme.secondary,
+          ),
+          const SizedBox(height: 16),
+          StatisticsCard(
+            title: 'Частично выполнено',
+            value: '${data['partial']?.toInt() ?? 0}',
+            icon: Icons.timelapse,
+            color: theme.colorScheme.tertiary,
+          ),
+          const SizedBox(height: 16),
+          StatisticsCard(
+            title: 'Процент попыток',
+            value: '${(data['rate'] ?? 0).toStringAsFixed(1)}%',
+            icon: Icons.insights,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(height: 16),
+          StatisticsCard(
+            title: 'Выше нормы',
+            value: '${data['aboveNorm']?.toInt() ?? 0}',
+            icon: Icons.trending_up,
+            color: Colors.green,
+          ),
+          if ((data['aboveNorm']?.toInt() ?? 0) > 0) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Вы часто перевыполняете план. Подумайте о плавном повышении порога.',
+            ),
+          ],
+        ],
       ),
     );
   }

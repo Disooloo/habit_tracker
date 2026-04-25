@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 
 class TimerWidget extends StatelessWidget {
   final int remainingSeconds;
@@ -15,6 +14,9 @@ class TimerWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = 1.0 - (remainingSeconds / totalSeconds);
     final theme = Theme.of(context);
+    final minutes = remainingSeconds ~/ 60;
+    final seconds = remainingSeconds % 60;
+    final formatted = '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
 
     return SizedBox(
       width: 200,
@@ -38,14 +40,14 @@ class TimerWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                remainingSeconds.toString(),
+                formatted,
                 style: theme.textTheme.displayLarge?.copyWith(
-                  fontSize: 48,
+                  fontSize: 42,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                'секунд',
+                'минуты : секунды',
                 style: theme.textTheme.bodyMedium,
               ),
             ],

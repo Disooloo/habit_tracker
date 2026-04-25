@@ -20,6 +20,7 @@ class TimerBloc extends Bloc<TimerEvent, TimerState> {
   void _onTimerStarted(TimerStarted event, Emitter<TimerState> emit) {
     _timer?.cancel();
     emit(TimerRunning(
+      habitId: event.habitId,
       remainingSeconds: event.durationSeconds,
       totalSeconds: event.durationSeconds,
     ));
@@ -39,6 +40,7 @@ class TimerBloc extends Bloc<TimerEvent, TimerState> {
     final currentState = state;
     if (currentState is TimerRunning) {
       emit(TimerRunning(
+        habitId: currentState.habitId,
         remainingSeconds: event.remainingSeconds,
         totalSeconds: currentState.totalSeconds,
       ));
@@ -46,9 +48,17 @@ class TimerBloc extends Bloc<TimerEvent, TimerState> {
   }
 
   void _onTimerCompleted(TimerCompletedEvent event, Emitter<TimerState> emit) {
+    final currentState = state;
     _timer?.cancel();
     _timer = null;
-    emit(const TimerCompleted());
+    if (currentState is TimerRunning) {
+      emit(TimerCompleted(
+        habitId: currentState.habitId,
+        totalSeconds: currentState.totalSeconds,
+      ));
+      return;
+    }
+    emit(const TimerInitial());
   }
 
   void _onTimerPaused(TimerPausedEvent event, Emitter<TimerState> emit) {
@@ -56,6 +66,7 @@ class TimerBloc extends Bloc<TimerEvent, TimerState> {
     final currentState = state;
     if (currentState is TimerRunning) {
       emit(TimerPaused(
+        habitId: currentState.habitId,
         remainingSeconds: currentState.remainingSeconds,
         totalSeconds: currentState.totalSeconds,
       ));
@@ -66,6 +77,7 @@ class TimerBloc extends Bloc<TimerEvent, TimerState> {
     final currentState = state;
     if (currentState is TimerPaused) {
       emit(TimerRunning(
+        habitId: currentState.habitId,
         remainingSeconds: currentState.remainingSeconds,
         totalSeconds: currentState.totalSeconds,
       ));
@@ -89,8 +101,24 @@ class TimerBloc extends Bloc<TimerEvent, TimerState> {
   }
 
   void _onTimerContinue(TimerContinue event, Emitter<TimerState> emit) {
-    // Restart timer for another 30 seconds
-    add(const TimerStarted(30));
+    final currentState = state;
+    if (currentState is TimerCompleted) {
+      emit(TimerRunning(
+        habitId: currentState.habitId,
+        remainingSeconds: currentState.totalSeconds,
+        totalSeconds: currentState.totalSeconds,
+      ));
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        final runningState = state;
+        if (runningState is TimerRunning) {
+          if (runningState.remainingSeconds > 0) {
+            add(TimerTicked(runningState.remainingSeconds - 1));
+          } else {
+            add(const TimerCompletedEvent());
+          }
+        }
+      });
+    }
   }
 
   void _onTimerFinish(TimerFinish event, Emitter<TimerState> emit) {

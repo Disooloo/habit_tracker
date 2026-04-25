@@ -19,6 +19,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _openCreateHabitAfterComplete = false;
 
   @override
   void dispose() {
@@ -33,10 +34,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return BlocListener<OnboardingBloc, OnboardingState>(
       listener: (context, state) {
         if (state is OnboardingCompletedState) {
-          // Просто перезагружаем приложение, чтобы показать главную
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => HomeScreen()),
-          );
+          // Переход в главный экран с предсказуемым стеком.
+          Navigator.of(context)
+              .pushReplacement(
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+              )
+              .then((_) {
+            if (_openCreateHabitAfterComplete && mounted) {
+              _openCreateHabitAfterComplete = false;
+              Navigator.of(context).pushNamed('/habit-form');
+            }
+          });
         }
       },
       child: Scaffold(
@@ -70,14 +78,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     const OnboardingPage2(),
                     OnboardingPage3(
                       onCreateHabit: () {
+                        _openCreateHabitAfterComplete = true;
                         context.read<OnboardingBloc>().add(const OnboardingCompleted());
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (context) => HomeScreen()),
-                        );
-                        // Navigate to create habit after a short delay
-                        Future.delayed(const Duration(milliseconds: 300), () {
-                          Navigator.of(context).pushNamed('/habit-form');
-                        });
                       },
                     ),
                   ],

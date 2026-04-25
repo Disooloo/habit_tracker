@@ -1,0 +1,15 @@
+{
+  "PROMO-BASE-7D": {
+    "plan": "Базовая",
+    "days": 7
+  },
+  "PROMO-EXT-7D": {
+    "plan": "Расширенная",
+    "days": 7
+  },
+  "PROMO-PREM-7D": {
+    "plan": "Премеум",
+    "days": 7
+  }
+}
+

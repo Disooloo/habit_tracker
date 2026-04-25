@@ -7,6 +7,7 @@ abstract class HabitRepository {
   Future<Habit?> getHabitById(int id);
   Future<void> updateHabit(Habit habit);
   Future<void> deleteHabit(int id);
+  Future<void> deleteAllHabits();
   Future<int> getHabitCount();
 
   // Tracking methods

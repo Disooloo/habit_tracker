@@ -12,6 +12,15 @@ class GetStatistics {
       final totalDays = await repository.getTotalDays(habitId);
       final weekdayStats = await repository.getTrackingByWeekday(habitId);
       final comebackCount = await repository.getComebackCount(habitId);
+      final habit = await repository.getHabitById(habitId);
+      final tracking = await repository.getTrackingByHabitId(habitId);
+      int aboveNormCount = 0;
+      if (habit?.targetValue != null) {
+        final target = habit!.targetValue!;
+        aboveNormCount = tracking
+            .where((t) => (t.currentValue ?? 0) > target)
+            .length;
+      }
 
       // Find best day of week
       int? bestWeekday;
@@ -29,6 +38,7 @@ class GetStatistics {
         bestWeekday: bestWeekday,
         comebackCount: comebackCount,
         weekdayStats: weekdayStats,
+        aboveNormCount: aboveNormCount,
       );
     } catch (e) {
       return StatisticsResult(
@@ -37,6 +47,7 @@ class GetStatistics {
         bestWeekday: null,
         comebackCount: 0,
         weekdayStats: {},
+        aboveNormCount: 0,
         error: e.toString(),
       );
     }
@@ -49,6 +60,7 @@ class StatisticsResult {
   final int? bestWeekday; // 1-7 (Monday=1, Sunday=7)
   final int comebackCount;
   final Map<int, int> weekdayStats;
+  final int aboveNormCount;
   final String? error;
 
   StatisticsResult({
@@ -57,6 +69,7 @@ class StatisticsResult {
     this.bestWeekday,
     required this.comebackCount,
     required this.weekdayStats,
+    required this.aboveNormCount,
     this.error,
   });
 
