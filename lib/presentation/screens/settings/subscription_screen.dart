@@ -12,6 +12,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   String? _activePlan;
   DateTime? _activeUntil;
   final TextEditingController _promoController = TextEditingController();
+  
+  String _formatPrice(int rubPrice, bool isRu) {
+    if (isRu) return '$rubPrice ₽';
+    final usd = (rubPrice / 100).toStringAsFixed(2);
+    return '\$$usd';
+  }
 
   @override
   void initState() {
@@ -55,24 +61,27 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _onActivatePlan(String planName) async {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Подписка "$planName"'),
-        content: const Text(
-          'В данный момент оплатить нельзя. Обратитесь в техническую поддержку.',
+        title: Text(isRu ? 'Подписка "$planName"' : 'Subscription "$planName"'),
+        content: Text(
+          isRu
+              ? 'В данный момент оплатить нельзя. Обратитесь в техническую поддержку.'
+              : 'Payments are currently unavailable. Please contact technical support.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Закрыть'),
+            child: Text(isRu ? 'Закрыть' : 'Close'),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
               Navigator.of(context).pushNamed('/feedback');
             },
-            child: const Text('В обратную связь'),
+            child: Text(isRu ? 'В обратную связь' : 'Open feedback'),
           ),
         ],
       ),
@@ -90,13 +99,24 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       months: months,
       packagePrice: price,
     );
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title),
-        Text(
-          discount > 0 ? '$price р  (скидка $discount%)' : '$price р',
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        Expanded(child: Text(title, overflow: TextOverflow.ellipsis)),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            discount > 0
+                ? (isRu
+                    ? '${_formatPrice(price, isRu)} (скидка $discount%)'
+                    : '${_formatPrice(price, isRu)} ($discount% off)')
+                : _formatPrice(price, isRu),
+            style: const TextStyle(fontWeight: FontWeight.w600),
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+          ),
         ),
       ],
     );
@@ -110,6 +130,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     required int yearPrice,
     required List<String> features,
   }) {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -131,24 +152,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 10),
             _planDurationLine(
-              title: '1 месяц',
+              title: isRu ? '1 месяц' : '1 month',
               price: monthPrice,
               monthPrice: monthPrice,
               months: 1,
             ),
             const SizedBox(height: 6),
             _planDurationLine(
-              title: '3 месяца',
+              title: isRu ? '3 месяца' : '3 months',
               price: quarterPrice,
               monthPrice: monthPrice,
               months: 3,
             ),
             const SizedBox(height: 6),
             _planDurationLine(
-              title: '12 месяцев',
+              title: isRu ? '12 месяцев' : '12 months',
               price: yearPrice,
               monthPrice: monthPrice,
               months: 12,
@@ -156,14 +179,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             const SizedBox(height: 12),
             ...features.map((f) => Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: Text('• $f'),
+                  child: Text(
+                    '• $f',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 )),
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
               child: ElevatedButton(
                 onPressed: () => _onActivatePlan(planName),
-                child: const Text('Активировать'),
+                child: Text(isRu ? 'Активировать' : 'Activate'),
               ),
             ),
           ],
@@ -174,15 +201,22 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     return Scaffold(
-      appBar: AppBar(title: const Text('Подписка и промокоды')),
+      appBar: AppBar(
+        title: Text(isRu ? 'Подписка и промокоды' : 'Subscription & Promo Codes'),
+      ),
       body: ListView(
         children: [
           if (_activePlan != null && _activeUntil != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Text(
-                'Активно: $_activePlan до ${_activeUntil!.day.toString().padLeft(2, '0')}.${_activeUntil!.month.toString().padLeft(2, '0')}.${_activeUntil!.year}',
+                isRu
+                    ? 'Активно: $_activePlan до ${_activeUntil!.day.toString().padLeft(2, '0')}.${_activeUntil!.month.toString().padLeft(2, '0')}.${_activeUntil!.year}'
+                    : 'Active: $_activePlan until ${_activeUntil!.day.toString().padLeft(2, '0')}.${_activeUntil!.month.toString().padLeft(2, '0')}.${_activeUntil!.year}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           Card(
@@ -192,13 +226,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Промокод'),
+                  Text(isRu ? 'Промокод' : 'Promo code'),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _promoController,
                     textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'Введите промокод',
+                    decoration: InputDecoration(
+                      labelText: isRu ? 'ПРОМОКОД' : 'PROMO CODE',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -207,7 +241,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     alignment: Alignment.centerRight,
                     child: ElevatedButton(
                       onPressed: _activatePromo,
-                      child: const Text('Активировать промокод'),
+                      child: Text(isRu ? 'Активировать промокод' : 'Activate promo code'),
                     ),
                   ),
                 ],
@@ -215,39 +249,42 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
           ),
           _buildPlanCard(
-            planName: 'Базовая',
+            planName: isRu ? 'Базовая' : 'Basic',
             color: Colors.blue,
             monthPrice: 50,
             quarterPrice: 140,
             yearPrice: 500,
-            features: const [
-              'До 10 привычек',
-              'Базовая статистика',
-              'Напоминания и дневник',
+            features: [
+              isRu ? 'До 10 привычек' : 'Up to 10 habits',
+              isRu ? 'Базовая статистика' : 'Basic analytics',
+              isRu
+                  ? 'Счётчик привычек (доступно с этого тарифа)'
+                  : 'Habit counter (included from this plan)',
+              isRu ? 'Напоминания и дневник' : 'Reminders and diary',
             ],
           ),
           _buildPlanCard(
-            planName: 'Расширенная',
+            planName: isRu ? 'Расширенная' : 'Extended',
             color: Colors.deepPurple,
             monthPrice: 120,
             quarterPrice: 330,
             yearPrice: 1200,
-            features: const [
-              'До 50 привычек',
-              'Продвинутая статистика и советы',
-              'Гибкие шаблоны и история',
+            features: [
+              isRu ? 'До 50 привычек' : 'Up to 50 habits',
+              isRu ? 'Продвинутая статистика и советы' : 'Advanced stats and advice',
+              isRu ? 'Гибкие шаблоны и история' : 'Flexible templates and history',
             ],
           ),
           _buildPlanCard(
-            planName: 'Премеум',
+            planName: isRu ? 'Премеум' : 'Premium',
             color: Colors.orange,
             monthPrice: 200,
             quarterPrice: 540,
             yearPrice: 2000,
-            features: const [
-              'Безлимит привычек',
-              'Полная аналитика и прогнозы',
-              'Приоритетная поддержка',
+            features: [
+              isRu ? 'Безлимит привычек' : 'Unlimited habits',
+              isRu ? 'Полная аналитика и прогнозы' : 'Full analytics and forecasts',
+              isRu ? 'Приоритетная поддержка' : 'Priority support',
             ],
           ),
           const SizedBox(height: 20),

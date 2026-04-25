@@ -9,7 +9,18 @@ import '../../../services/habit_diary_service.dart';
 import '../../../services/habit_goal_service.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final String currentLanguage;
+  final ThemeMode currentThemeMode;
+  final Future<void> Function(String languageCode) onLanguageChanged;
+  final Future<void> Function(ThemeMode mode) onThemeModeChanged;
+
+  const SettingsScreen({
+    super.key,
+    required this.currentLanguage,
+    required this.currentThemeMode,
+    required this.onLanguageChanged,
+    required this.onThemeModeChanged,
+  });
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -18,10 +29,13 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = false;
   String _language = 'ru';
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
     super.initState();
+    _language = widget.currentLanguage;
+    _themeMode = widget.currentThemeMode;
     _loadSettings();
   }
 
@@ -61,25 +75,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.keyLanguage, language);
-    // Note: Language change would require app restart in real implementation
+    await widget.onLanguageChanged(language);
+  }
+
+  Future<void> _changeThemeMode(ThemeMode mode) async {
+    setState(() {
+      _themeMode = mode;
+    });
+    await widget.onThemeModeChanged(mode);
   }
 
   Future<void> _confirmResetAll() async {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Сбросить все данные?'),
-        content: const Text(
-          'Вы точно хотите сбросить все свои записи, привычки и историю? Это действие нельзя отменить.',
+        title: Text(isRu ? 'Сбросить все данные?' : 'Reset all data?'),
+        content: Text(
+          isRu
+              ? 'Вы точно хотите сбросить все свои записи, привычки и историю? Это действие нельзя отменить.'
+              : 'Do you really want to reset all your records, habits and history? This action cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Отмена'),
+            child: Text(isRu ? 'Отмена' : 'Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Сбросить'),
+            child: Text(isRu ? 'Сбросить' : 'Reset'),
           ),
         ],
       ),
@@ -96,13 +120,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Все привычки и записи сброшены')),
+      SnackBar(
+        content: Text(
+          isRu ? 'Все привычки и записи сброшены' : 'All habits and records have been reset',
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
 
     return Scaffold(
       appBar: AppBar(
@@ -113,7 +142,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Notifications
           SwitchListTile(
             title: Text(l10n.notifications),
-            subtitle: const Text('Мягкие напоминания о привычках'),
+            subtitle: Text(
+              isRu ? 'Мягкие напоминания о привычках' : 'Gentle habit reminders',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             value: _notificationsEnabled,
             onChanged: _toggleNotifications,
           ),
@@ -137,8 +170,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           ListTile(
-            title: const Text('Подписка и промокоды'),
-            subtitle: const Text('Тарифы, скидки и активация промокода'),
+            title: Text(isRu ? 'Тема' : 'Theme'),
+            subtitle: Text(
+              _themeMode == ThemeMode.system
+                  ? (isRu ? 'Как в устройстве' : 'Follow device')
+                  : _themeMode == ThemeMode.light
+                      ? (isRu ? 'Светлая' : 'Light')
+                      : (isRu ? 'Темная' : 'Dark'),
+            ),
+            trailing: DropdownButton<ThemeMode>(
+              value: _themeMode,
+              items: [
+                DropdownMenuItem(
+                  value: ThemeMode.system,
+                  child: Text(isRu ? 'Система' : 'System'),
+                ),
+                DropdownMenuItem(
+                  value: ThemeMode.light,
+                  child: Text(isRu ? 'Светлая' : 'Light'),
+                ),
+                DropdownMenuItem(
+                  value: ThemeMode.dark,
+                  child: Text(isRu ? 'Темная' : 'Dark'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  _changeThemeMode(value);
+                }
+              },
+            ),
+          ),
+          const Divider(),
+          ListTile(
+            title: Text(isRu ? 'Подписка и промокоды' : 'Subscription and promo codes'),
+            subtitle: Text(
+              isRu ? 'Тарифы, скидки и активация промокода' : 'Plans, discounts and promo activation',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             leading: const Icon(Icons.workspace_premium_outlined),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
@@ -147,8 +217,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           ListTile(
-            title: const Text('Сбросить все привычки и записи'),
-            subtitle: const Text('Удалить привычки, трекинг, дневник и уведомления'),
+            title: Text(isRu ? 'Сбросить все привычки и записи' : 'Reset all habits and records'),
+            subtitle: Text(
+              isRu
+                  ? 'Удалить привычки, трекинг, дневник и уведомления'
+                  : 'Delete habits, tracking, diary and notifications',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             leading: const Icon(Icons.delete_forever, color: Colors.red),
             onTap: _confirmResetAll,
           ),

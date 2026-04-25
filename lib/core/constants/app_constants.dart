@@ -24,6 +24,7 @@ class AppConstants {
   static const String keyRedeemedPromoCodes = 'redeemed_promo_codes';
   static const String keySubscriptionExpiredHandled = 'subscription_expired_handled_until';
   static const String keyLanguage = 'language';
+  static const String keyThemeMode = 'theme_mode';
   static const String keyNotificationsEnabled = 'notifications_enabled';
 
   // Notification IDs

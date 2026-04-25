@@ -35,13 +35,6 @@ class _TimerScreenState extends State<TimerScreen> {
 
   Habit? _currentHabit;
   int _lastUpdatedSeconds = -1;
-  static const List<String> _finishMessages = [
-    'Прекрасная работа! Сегодня вы закрыли цель.',
-    'Супер! Еще один выполненный день.',
-    'Отличный результат, вы в ритме!',
-    'Класс! Вы завершили привычку на сегодня.',
-  ];
-
   void _initializeTimer(Habit habit) {
     if (_timerInitialized) return;
     _currentHabit = habit;
@@ -61,14 +54,14 @@ class _TimerScreenState extends State<TimerScreen> {
     // Если у привычки установлено время, используем его
     if (habit.goalType == 'time' && habit.targetValue != null) {
       final targetValue = habit.targetValue!;
-      final unit = habit.unit ?? 'минут';
+      final unit = habit.unit ?? 'minutes';
       
       // Конвертируем в секунды
-      if (unit.contains('секунд')) {
+      if (unit.contains('сек') || unit.contains('second')) {
         timerSeconds = targetValue;
-      } else if (unit.contains('минут')) {
+      } else if (unit.contains('мин') || unit.contains('minute')) {
         timerSeconds = targetValue * 60;
-      } else if (unit.contains('час')) {
+      } else if (unit.contains('час') || unit.contains('hour')) {
         timerSeconds = targetValue * 3600;
       }
     }
@@ -105,9 +98,9 @@ class _TimerScreenState extends State<TimerScreen> {
     // Конвертируем прошедшее время в единицы привычки
     int currentValue = elapsedSeconds;
     if (_currentHabit!.unit != null) {
-      if (_currentHabit!.unit!.contains('минут')) {
+      if (_currentHabit!.unit!.contains('мин') || _currentHabit!.unit!.contains('minute')) {
         currentValue = elapsedSeconds ~/ 60;
-      } else if (_currentHabit!.unit!.contains('час')) {
+      } else if (_currentHabit!.unit!.contains('час') || _currentHabit!.unit!.contains('hour')) {
         currentValue = elapsedSeconds ~/ 3600;
       }
     }
@@ -147,9 +140,9 @@ class _TimerScreenState extends State<TimerScreen> {
     // Конвертируем прошедшее время в единицы привычки
     int currentValue = elapsedSeconds;
     if (_currentHabit!.unit != null) {
-      if (_currentHabit!.unit!.contains('минут')) {
+      if (_currentHabit!.unit!.contains('мин') || _currentHabit!.unit!.contains('minute')) {
         currentValue = elapsedSeconds ~/ 60;
-      } else if (_currentHabit!.unit!.contains('час')) {
+      } else if (_currentHabit!.unit!.contains('час') || _currentHabit!.unit!.contains('hour')) {
         currentValue = elapsedSeconds ~/ 3600;
       }
     }
@@ -167,13 +160,14 @@ class _TimerScreenState extends State<TimerScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
 
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.start30Seconds),
         actions: [
           IconButton(
-            tooltip: 'Сбросить',
+            tooltip: isRu ? 'Сбросить' : 'Reset',
             onPressed: () {
               context.read<TimerBloc>().add(const TimerStopped());
               Navigator.of(context).maybePop();
@@ -320,8 +314,8 @@ class _TimerScreenState extends State<TimerScreen> {
   }
 
   Widget _buildPausedState(BuildContext context, TimerPaused state) {
-    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
 
     return Center(
       child: Column(
@@ -340,7 +334,7 @@ class _TimerScreenState extends State<TimerScreen> {
                 context.read<TimerBloc>().add(const TimerResumed());
               },
               icon: const Icon(Icons.play_arrow),
-              label: const Text('Продолжить'),
+              label: Text(isRu ? 'Продолжить' : 'Continue'),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
@@ -354,6 +348,20 @@ class _TimerScreenState extends State<TimerScreen> {
   Widget _buildCompletedState(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
+    final finishMessages = isRu
+        ? const [
+            'Прекрасная работа! Сегодня вы закрыли цель.',
+            'Супер! Еще один выполненный день.',
+            'Отличный результат, вы в ритме!',
+            'Класс! Вы завершили привычку на сегодня.',
+          ]
+        : const [
+            'Great work! You completed today’s goal.',
+            'Awesome! Another completed day.',
+            'Excellent result, you are in rhythm!',
+            'Nice! Habit completed for today.',
+          ];
 
     return Center(
       child: Padding(
@@ -395,8 +403,8 @@ class _TimerScreenState extends State<TimerScreen> {
                           status: AppConstants.statusDone,
                         ),
                       );
-                  final message = _finishMessages[
-                      DateTime.now().millisecond % _finishMessages.length];
+                  final message = finishMessages[
+                      DateTime.now().millisecond % finishMessages.length];
                   InAppNotificationService().addMessage(message);
                   ScaffoldMessenger.of(context)
                       .showSnackBar(SnackBar(content: Text(message)));
@@ -419,8 +427,8 @@ class _TimerScreenState extends State<TimerScreen> {
                           status: AppConstants.statusDone,
                         ),
                       );
-                  final message = _finishMessages[
-                      DateTime.now().millisecond % _finishMessages.length];
+                  final message = finishMessages[
+                      DateTime.now().millisecond % finishMessages.length];
                   InAppNotificationService().addMessage(message);
                   ScaffoldMessenger.of(context)
                       .showSnackBar(SnackBar(content: Text(message)));

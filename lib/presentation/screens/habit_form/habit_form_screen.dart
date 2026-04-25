@@ -13,6 +13,7 @@ import '../../../services/subscription_service.dart';
 import '../../../data/repositories/habit_repository_impl.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/in_app_notification_service.dart';
+import '../../../services/habit_streak_service.dart';
 
 class HabitFormScreen extends StatefulWidget {
   final int? habitId; // null for create, non-null for edit
@@ -39,6 +40,8 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
 
   bool _isLoading = false;
   Habit? _existingHabit;
+  final HabitStreakService _streakService = HabitStreakService();
+  DateTime? _startDate;
 
   @override
   void initState() {
@@ -72,6 +75,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
       final useCase = GetHabitById(repository);
       final habit = await useCase(widget.habitId!);
       if (habit != null) {
+        final streakStart = await _streakService.getStartDate(widget.habitId!);
         setState(() {
           _existingHabit = habit;
           _nameController.text = habit.name;
@@ -91,16 +95,17 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
           }
           if (habit.goalType == 'time' && habit.unit != null) {
             // Определяем единицу времени из сохраненного значения
-            if (habit.unit!.contains('секунд')) {
+            if (habit.unit!.contains('секунд') || habit.unit!.contains('second')) {
               _timeUnit = 'seconds';
-            } else if (habit.unit!.contains('минут')) {
+            } else if (habit.unit!.contains('минут') || habit.unit!.contains('minute')) {
               _timeUnit = 'minutes';
-            } else if (habit.unit!.contains('час')) {
+            } else if (habit.unit!.contains('час') || habit.unit!.contains('hour')) {
               _timeUnit = 'hours';
             } else {
               _timeUnit = 'minutes'; // По умолчанию
             }
           }
+          _startDate = streakStart;
         });
       }
     } catch (e) {
@@ -191,6 +196,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
 
     if (_isLoading) {
       return Scaffold(
@@ -218,6 +224,9 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
               Navigator.of(context).pop();
             }
           });
+          if (_startDate != null) {
+            _streakService.setStartDate(savedHabit.id, _startDate!);
+          }
         } else if (state is HabitError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message)),
@@ -235,12 +244,18 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
             children: [
               // Предложения привычек (только при создании)
               if (widget.habitId == null) ...[
-                Text('Тип привычки', style: theme.textTheme.titleMedium),
+                Text(isRu ? 'Тип привычки' : 'Habit type', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'build', label: Text('Развивать')),
-                    ButtonSegment(value: 'quit', label: Text('Отказаться')),
+                  segments: [
+                    ButtonSegment(
+                      value: 'build',
+                      label: Text(isRu ? 'Развивать' : 'Build'),
+                    ),
+                    ButtonSegment(
+                      value: 'quit',
+                      label: Text(isRu ? 'Отказаться' : 'Quit'),
+                    ),
                   ],
                   selected: {_habitKind},
                   onSelectionChanged: (Set<String> value) {
@@ -263,7 +278,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Введите название привычки';
+                    return isRu ? 'Введите название привычки' : 'Enter habit name';
                   }
                   return null;
                 },
@@ -277,28 +292,28 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Введите минимальное действие';
+                    return isRu ? 'Введите минимальное действие' : 'Enter minimal action';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 24),
               // Выбор типа цели
-              Text('Тип цели', style: theme.textTheme.titleMedium),
+              Text(isRu ? 'Тип цели' : 'Goal type', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               SegmentedButton<String?>(
                 segments: [
                   ButtonSegment(
                     value: null,
-                    label: const Text('Простая'),
+                    label: Text(isRu ? 'Простая' : 'Simple'),
                   ),
                   ButtonSegment(
                     value: 'quantity',
-                    label: const Text('Количество'),
+                    label: Text(isRu ? 'Количество' : 'Quantity'),
                   ),
                   ButtonSegment(
                     value: 'time',
-                    label: const Text('Время'),
+                    label: Text(isRu ? 'Время' : 'Time'),
                   ),
                 ],
                 selected: {_goalType},
@@ -320,22 +335,22 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                   // Для времени: выбор единицы измерения
                   TextFormField(
                     controller: _targetValueController,
-                    decoration: const InputDecoration(
-                      labelText: 'Целевое значение',
+                    decoration: InputDecoration(
+                      labelText: isRu ? 'Целевое значение' : 'Target value',
                       hintText: '30',
-                      helperText: 'Максимум 99 минут',
+                      helperText: isRu ? 'Максимум 99 минут' : 'Max 99 minutes',
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Введите значение';
+                        return isRu ? 'Введите значение' : 'Enter value';
                       }
                       final intValue = int.tryParse(value);
                       if (intValue == null) {
-                        return 'Введите число';
+                        return isRu ? 'Введите число' : 'Enter a number';
                       }
                       if (_timeUnit == 'minutes' && intValue > 99) {
-                        return 'Максимум 99 минут';
+                        return isRu ? 'Максимум 99 минут' : 'Maximum is 99 minutes';
                       }
                       return null;
                     },
@@ -343,13 +358,13 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     value: _timeUnit,
-                    decoration: const InputDecoration(
-                      labelText: 'Единица времени',
+                    decoration: InputDecoration(
+                      labelText: isRu ? 'Единица времени' : 'Time unit',
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'seconds', child: Text('Секунды')),
-                      DropdownMenuItem(value: 'minutes', child: Text('Минуты (макс. 99)')),
-                      DropdownMenuItem(value: 'hours', child: Text('Часы')),
+                      DropdownMenuItem(value: 'seconds', child: Text('Seconds')),
+                      DropdownMenuItem(value: 'minutes', child: Text('Minutes (max. 99)')),
+                      DropdownMenuItem(value: 'hours', child: Text('Hours')),
                     ],
                     onChanged: (value) {
                       setState(() {
@@ -358,7 +373,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                     },
                     validator: (value) {
                       if (_goalType == 'time' && value == null) {
-                        return 'Выберите единицу времени';
+                        return isRu ? 'Выберите единицу времени' : 'Select time unit';
                       }
                       return null;
                     },
@@ -367,18 +382,22 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                   // Для количества: просто подсказка
                   TextFormField(
                     controller: _targetValueController,
-                    decoration: const InputDecoration(
-                      labelText: 'Целевое количество',
-                      hintText: 'Например: 3 стакана, 5 страниц, 10 шагов...',
-                      helperText: 'Введите число (единица измерения будет понятна из названия привычки)',
+                    decoration: InputDecoration(
+                      labelText: isRu ? 'Целевое количество' : 'Target quantity',
+                      hintText: isRu
+                          ? 'Например: 3 стакана, 5 страниц, 10 шагов...'
+                          : 'e.g. 3 glasses, 5 pages, 10 steps...',
+                      helperText: isRu
+                          ? 'Введите число'
+                          : 'Enter a number',
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Введите количество';
+                        return isRu ? 'Введите количество' : 'Enter quantity';
                       }
                       if (int.tryParse(value) == null) {
-                        return 'Введите число';
+                        return isRu ? 'Введите число' : 'Enter a number';
                       }
                       return null;
                     },
@@ -386,21 +405,47 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                 ],
               ],
               const SizedBox(height: 24),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(isRu ? 'Дата начала привычки' : 'Habit start date'),
+                subtitle: Text(
+                  _startDate == null
+                      ? (isRu ? 'Не выбрана' : 'Not selected')
+                      : '${_startDate!.day.toString().padLeft(2, '0')}.${_startDate!.month.toString().padLeft(2, '0')}.${_startDate!.year}',
+                ),
+                trailing: TextButton(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _startDate ?? DateTime.now(),
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _startDate = picked;
+                      });
+                    }
+                  },
+                  child: Text(isRu ? 'Выбрать' : 'Select'),
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(l10n.frequency, style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               SegmentedButton<String>(
                 segments: [
                   ButtonSegment(
                     value: AppConstants.frequencyDailyOnce,
-                    label: const Text('1 раз в день'),
+                    label: Text(isRu ? '1 раз в день' : 'Once a day'),
                   ),
                   ButtonSegment(
                     value: AppConstants.frequencyDailyMulti,
-                    label: const Text('Несколько раз в день'),
+                    label: Text(isRu ? 'Несколько раз в день' : 'Multiple times a day'),
                   ),
                   ButtonSegment(
                     value: AppConstants.frequencyWeekly,
-                    label: const Text('По дням недели'),
+                    label: Text(isRu ? 'По дням недели' : 'Weekly'),
                   ),
                 ],
                 selected: {_frequency},
@@ -459,22 +504,28 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
 
   Widget _buildSuggestionsSection(BuildContext context) {
     final theme = Theme.of(context);
-    final categories = HabitSuggestions.categoriesByKind(_habitKind);
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final isRu = languageCode.startsWith('ru');
+    final categories = HabitSuggestions.categoriesByKind(_habitKind, languageCode);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           _habitKind == 'build'
-              ? 'Готовые полезные привычки'
-              : 'Готовые привычки для отказа',
+              ? (isRu ? 'Готовые полезные привычки' : 'Ready healthy habits')
+              : (isRu ? 'Готовые привычки для отказа' : 'Ready quit habits'),
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 12),
         ...categories.map((category) {
-          final suggestions = HabitSuggestions.getByCategory(category, _habitKind);
+          final suggestions = HabitSuggestions.getByCategory(
+            category,
+            _habitKind,
+            languageCode,
+          );
           return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ExpansionTile(
@@ -517,7 +568,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                       }
                     });
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Совет: ${suggestion.tip}')),
+                      SnackBar(content: Text('${isRu ? 'Совет' : 'Tip'}: ${suggestion.tip}')),
                     );
                   },
                   child: Padding(
@@ -536,6 +587,8 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                                 style: theme.textTheme.bodyLarge?.copyWith(
                                   fontWeight: FontWeight.w500,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -543,11 +596,15 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurface.withOpacity(0.7),
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Совет: ${suggestion.tip}',
+                                '${isRu ? 'Совет' : 'Tip'}: ${suggestion.tip}',
                                 style: theme.textTheme.bodySmall,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
@@ -571,13 +628,13 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
   String _getTimeUnitText(String unit) {
     switch (unit) {
       case 'seconds':
-        return 'секунд';
+        return 'seconds';
       case 'minutes':
-        return 'минут';
+        return 'minutes';
       case 'hours':
-        return 'часов';
+        return 'hours';
       default:
-        return 'минут';
+        return 'minutes';
     }
   }
 }

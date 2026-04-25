@@ -9,6 +9,7 @@ import '../../bloc/habit/habit_state.dart';
 import '../../widgets/statistics_card.dart';
 import '../../../core/utils/date_utils.dart' as habit_date_utils;
 import '../../../domain/entities/habit.dart';
+import '../../../services/habit_localization_service.dart';
 
 class StatisticsScreen extends StatefulWidget {
   final int? habitId; // If null, show overall stats
@@ -130,6 +131,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   ) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -139,18 +141,26 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           // Habit selector
           DropdownButtonFormField<int?>(
             initialValue: _selectedHabitId,
-            decoration: const InputDecoration(
-              labelText: 'Режим статистики',
+            decoration: InputDecoration(
+              labelText: isRu ? 'Режим статистики' : 'Mode',
             ),
             items: [
-              const DropdownMenuItem<int?>(
+              DropdownMenuItem<int?>(
                 value: null,
-                child: Text('Все привычки'),
+                child: Text(isRu ? 'Все привычки' : 'All habits'),
               ),
               ...habits.map((habit) {
+                final localizedName = HabitLocalizationService.localizeHabitName(
+                  habit.name,
+                  Localizations.localeOf(context).languageCode,
+                );
                 return DropdownMenuItem<int?>(
                   value: habit.id,
-                  child: Text(habit.name),
+                  child: Text(
+                    localizedName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 );
               }),
             ],
@@ -175,7 +185,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           // Best day of week
           StatisticsCard(
             title: l10n.bestDayOfWeek,
-            value: result.bestDayName ?? 'Нет данных',
+            value: result.bestDayName ?? (isRu ? 'Нет данных' : 'No data'),
             icon: Icons.star,
             color: theme.colorScheme.tertiary,
           ),
@@ -183,14 +193,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           // Comeback count
           StatisticsCard(
             title: l10n.youCameBack,
-            value: '${result.comebackCount} раз',
+            value: isRu ? '${result.comebackCount} раз' : '${result.comebackCount} times',
             icon: Icons.refresh,
             color: theme.colorScheme.primary,
           ),
           const SizedBox(height: 16),
           StatisticsCard(
-            title: 'Выше нормы',
-            value: '${result.aboveNormCount} раз',
+            title: isRu ? 'Выше нормы' : 'Above target',
+            value: isRu ? '${result.aboveNormCount} раз' : '${result.aboveNormCount} times',
             icon: Icons.trending_up,
             color: Colors.green,
           ),
@@ -200,7 +210,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Text(
-                  'Вы часто делаете выше нормы. Можно немного повысить порог цели.',
+                  isRu
+                      ? 'Вы часто делаете выше нормы. Можно немного повысить порог цели.'
+                      : 'You often exceed your target. Consider raising it gradually.',
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
@@ -210,7 +222,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           // Weekday chart
           if (result.weekdayStats.isNotEmpty) ...[
             Text(
-              'Активность по дням недели',
+              isRu ? 'Активность по дням недели' : 'Activity by weekday',
               style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
@@ -311,6 +323,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     Map<String, num> data,
   ) {
     final theme = Theme.of(context);
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -318,17 +331,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         children: [
           DropdownButtonFormField<int?>(
             initialValue: _selectedHabitId,
-            decoration: const InputDecoration(labelText: 'Режим статистики'),
+            decoration: InputDecoration(labelText: isRu ? 'Режим статистики' : 'Statistics mode'),
             items: [
-              const DropdownMenuItem<int?>(
+              DropdownMenuItem<int?>(
                 value: null,
-                child: Text('Все привычки'),
+                child: Text(isRu ? 'Все привычки' : 'All habits'),
               ),
               ...habits.map(
-                (h) => DropdownMenuItem<int?>(
-                  value: h.id,
-                  child: Text(h.name),
-                ),
+                (h) {
+                  final name = HabitLocalizationService.localizeHabitName(
+                    h.name,
+                    Localizations.localeOf(context).languageCode,
+                  );
+                  return DropdownMenuItem<int?>(
+                    value: h.id,
+                    child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  );
+                },
               ),
             ],
             onChanged: (value) {
@@ -340,36 +359,38 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           ),
           const SizedBox(height: 16),
           StatisticsCard(
-            title: 'Всего выполнено',
+            title: isRu ? 'Всего выполнено' : 'Total done',
             value: '${data['done']?.toInt() ?? 0}',
             icon: Icons.check_circle_outline,
             color: theme.colorScheme.secondary,
           ),
           const SizedBox(height: 16),
           StatisticsCard(
-            title: 'Частично выполнено',
+            title: isRu ? 'Частично выполнено' : 'Partial done',
             value: '${data['partial']?.toInt() ?? 0}',
             icon: Icons.timelapse,
             color: theme.colorScheme.tertiary,
           ),
           const SizedBox(height: 16),
           StatisticsCard(
-            title: 'Процент попыток',
+            title: isRu ? 'Процент попыток' : 'Attempt rate',
             value: '${(data['rate'] ?? 0).toStringAsFixed(1)}%',
             icon: Icons.insights,
             color: theme.colorScheme.primary,
           ),
           const SizedBox(height: 16),
           StatisticsCard(
-            title: 'Выше нормы',
+            title: isRu ? 'Выше нормы' : 'Above target',
             value: '${data['aboveNorm']?.toInt() ?? 0}',
             icon: Icons.trending_up,
             color: Colors.green,
           ),
           if ((data['aboveNorm']?.toInt() ?? 0) > 0) ...[
             const SizedBox(height: 10),
-            const Text(
-              'Вы часто перевыполняете план. Подумайте о плавном повышении порога.',
+            Text(
+              isRu
+                  ? 'Вы часто перевыполняете план. Подумайте о плавном повышении порога.'
+                  : 'You often exceed your plan. Consider increasing the target gradually.',
             ),
           ],
         ],

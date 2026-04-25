@@ -17,6 +17,7 @@ import '../../../domain/repositories/habit_repository.dart';
 import '../../../services/in_app_notification_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/subscription_service.dart';
+import '../../../services/habit_streak_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _setupOpenSessionNotifications() async {
     final inAppService = InAppNotificationService();
     await inAppService.markAppOpenedAndHandleInactivity();
+    await _addDailyCheckinQuestion();
 
     final prefs = await SharedPreferences.getInstance();
     final notificationsEnabled =
@@ -54,7 +56,31 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _addDailyCheckinQuestion() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final key =
+        'daily_checkin_${now.year}_${now.month.toString().padLeft(2, '0')}_${now.day.toString().padLeft(2, '0')}';
+    if (prefs.getBool(key) == true) return;
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
+    final messages = isRu
+        ? const [
+            'Как сегодня с полезными привычками? Получилось удержать темп?',
+            'Как прогресс по отказу от вредных привычек сегодня?',
+            'Напомнить: маленький шаг сегодня лучше, чем идеальный завтра.',
+          ]
+        : const [
+            'How are your positive habits going today?',
+            'How is your progress on quitting bad habits today?',
+            'Reminder: a small step today is better than perfect tomorrow.',
+          ];
+    await InAppNotificationService()
+        .addMessage(messages[now.millisecond % messages.length]);
+    await prefs.setBool(key, true);
+  }
+
   Future<void> _refreshSubscriptionHeader() async {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     final service = SubscriptionService();
     final plan = await service.getActivePlan();
     final until = await service.getActiveUntil();
@@ -62,14 +88,17 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       if (plan != null && until != null && until.isAfter(DateTime.now())) {
         _subscriptionHeaderText =
-            '$plan до ${until.day.toString().padLeft(2, '0')}.${until.month.toString().padLeft(2, '0')}.${until.year}';
+            isRu
+                ? '$plan до ${until.day.toString().padLeft(2, '0')}.${until.month.toString().padLeft(2, '0')}.${until.year}'
+                : '$plan until ${until.day.toString().padLeft(2, '0')}.${until.month.toString().padLeft(2, '0')}.${until.year}';
       } else {
-        _subscriptionHeaderText = 'Бесплатная подписка';
+        _subscriptionHeaderText = isRu ? 'Бесплатная подписка' : 'Free plan';
       }
     });
   }
 
   Future<void> _handleExpiredSubscriptionIfNeeded(List<Habit> habits) async {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     if (_expirationHandledThisSession) return;
     final prefs = await SharedPreferences.getInstance();
     final untilRaw = prefs.getString(AppConstants.keySubscriptionUntil);
@@ -92,11 +121,15 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Подписка завершилась'),
+        title: Text(isRu ? 'Подписка завершилась' : 'Subscription expired'),
         content: Text(
           overLimit > 0
-              ? 'Подписка истекла. Можно оставить до ${AppConstants.freeHabitLimit} привычек. Сейчас лишних: $overLimit.'
-              : 'Подписка истекла. Вы на бесплатном тарифе.',
+              ? (isRu
+                  ? 'Подписка истекла. Можно оставить до ${AppConstants.freeHabitLimit} привычек. Сейчас лишних: $overLimit.'
+                  : 'Subscription expired. You can keep up to ${AppConstants.freeHabitLimit} habits. Extra habits: $overLimit.')
+              : (isRu
+                  ? 'Подписка истекла. Вы на бесплатном тарифе.'
+                  : 'Subscription expired. You are now on the free plan.'),
         ),
         actions: [
           if (overLimit > 0)
@@ -113,14 +146,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   context.read<HabitBloc>().add(const LoadHabits());
                 }
               },
-              child: const Text('Оставить базовые'),
+              child: Text(isRu ? 'Оставить базовые' : 'Keep basic set'),
             ),
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
               Navigator.of(context).pushNamed('/subscription');
             },
-            child: const Text('Продлить'),
+            child: Text(isRu ? 'Продлить' : 'Renew'),
           ),
         ],
       ),
@@ -141,11 +174,15 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               l10n.canStartSmall,
               style: theme.textTheme.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             if (_subscriptionHeaderText != null)
               Text(
                 _subscriptionHeaderText!,
                 style: theme.textTheme.labelSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
           ],
         ),
@@ -207,7 +244,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () {
                         context.read<HabitBloc>().add(const LoadHabits());
                       },
-                      child: const Text('Повторить'),
+                      child: Text(Localizations.localeOf(context).languageCode.startsWith('ru')
+                          ? 'Повторить'
+                          : 'Retry'),
                     ),
                   ],
                 ),
@@ -295,6 +334,8 @@ class _HabitsListWidget extends StatefulWidget {
 
 class _HabitsListWidgetState extends State<_HabitsListWidget> {
   Map<int, HabitTracking?> _todayTracking = {};
+  final HabitStreakService _streakService = HabitStreakService();
+  String? _maxQuitCounterText;
 
   @override
   void initState() {
@@ -329,9 +370,27 @@ class _HabitsListWidgetState extends State<_HabitsListWidget> {
       }
     }
 
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
+    Duration? best;
+    for (final habit in widget.habits) {
+      if (!_streakService.isLikelyQuitHabit(habit.name)) continue;
+      final start = await _streakService.getStartDate(habit.id);
+      if (start == null) continue;
+      final d = DateTime.now().difference(start);
+      if (best == null || d > best) best = d;
+    }
+    final bestText = best == null
+        ? null
+        : _streakService.elapsedText(
+            DateTime.now().subtract(best),
+            DateTime.now(),
+            isRu,
+          );
+
     if (mounted) {
       setState(() {
         _todayTracking = trackingMap;
+        _maxQuitCounterText = bestText;
       });
     }
   }
@@ -420,6 +479,7 @@ class _HabitsListWidgetState extends State<_HabitsListWidget> {
           itemCount: widget.habits.length + 1,
           itemBuilder: (context, index) {
             if (index == 0) {
+              final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
               return Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: Card(
@@ -429,9 +489,19 @@ class _HabitsListWidgetState extends State<_HabitsListWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Статистика за сегодня: $doneCount/$total выполнено, $partialCount в процессе',
+                          Localizations.localeOf(context).languageCode.startsWith('ru')
+                              ? 'Статистика за сегодня: $doneCount/$total выполнено, $partialCount в процессе'
+                              : 'Today: $doneCount/$total done, $partialCount in progress',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
+                        if (_maxQuitCounterText != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            isRu
+                                ? 'Без вредных привычек (максимум): $_maxQuitCounterText'
+                                : 'Without bad habits (max): $_maxQuitCounterText',
+                          ),
+                        ],
                       ],
                     ),
                   ),

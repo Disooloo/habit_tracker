@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:habit_tracker/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme/app_theme.dart';
 import 'data/database/app_database.dart';
@@ -33,6 +34,7 @@ import 'presentation/screens/settings/terms_of_service_screen.dart';
 import 'presentation/screens/notifications/notifications_screen.dart';
 import 'presentation/screens/diary/diary_screen.dart';
 import 'services/notification_service.dart';
+import 'core/constants/app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,8 +64,69 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  Locale? _locale;
+  ThemeMode _themeMode = ThemeMode.system;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final language = prefs.getString(AppConstants.keyLanguage);
+    final theme = prefs.getString(AppConstants.keyThemeMode) ?? 'system';
+    if (!mounted) return;
+    setState(() {
+      if (language == 'ru' || language == 'en') {
+        _locale = Locale(language!);
+      }
+      _themeMode = _parseThemeMode(theme);
+    });
+  }
+
+  ThemeMode _parseThemeMode(String value) {
+    switch (value) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  Future<void> _onLanguageChanged(String languageCode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.keyLanguage, languageCode);
+    if (!mounted) return;
+    setState(() {
+      _locale = Locale(languageCode);
+    });
+  }
+
+  Future<void> _onThemeModeChanged(ThemeMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = switch (mode) {
+      ThemeMode.light => 'light',
+      ThemeMode.dark => 'dark',
+      ThemeMode.system => 'system',
+    };
+    await prefs.setString(AppConstants.keyThemeMode, value);
+    if (!mounted) return;
+    setState(() {
+      _themeMode = mode;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +167,9 @@ class MyApp extends StatelessWidget {
         title: 'Мягкий трекер привычек',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        darkTheme: ThemeData.dark(useMaterial3: true),
+        themeMode: _themeMode,
+        locale: _locale,
         localizationsDelegates: [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -132,7 +198,12 @@ class MyApp extends StatelessWidget {
             final args = ModalRoute.of(context)?.settings.arguments;
             return StatisticsScreen(habitId: args as int?);
           },
-          '/settings': (context) => const SettingsScreen(),
+          '/settings': (context) => SettingsScreen(
+                currentLanguage: _locale?.languageCode ?? 'ru',
+                currentThemeMode: _themeMode,
+                onLanguageChanged: _onLanguageChanged,
+                onThemeModeChanged: _onThemeModeChanged,
+              ),
           '/subscription': (context) => const SubscriptionScreen(),
           '/feedback': (context) => const FeedbackScreen(),
           '/privacy-policy': (context) => const PrivacyPolicyScreen(),

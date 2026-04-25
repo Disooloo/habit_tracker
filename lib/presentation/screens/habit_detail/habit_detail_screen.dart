@@ -13,6 +13,9 @@ import '../../../domain/entities/habit_tracking.dart';
 import '../../../domain/entities/habit.dart';
 import '../../../services/habit_advice_service.dart';
 import '../../../services/habit_goal_service.dart';
+import '../../../services/habit_localization_service.dart';
+import '../../../services/habit_streak_service.dart';
+import '../../../services/in_app_notification_service.dart';
 
 enum HistoryRange { day1, day3, week, month, custom }
 
@@ -30,12 +33,16 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
   DateTimeRange? _customRange;
   final HabitAdviceService _adviceService = HabitAdviceService();
   final HabitGoalService _goalService = HabitGoalService();
+  final HabitStreakService _streakService = HabitStreakService();
   String? _currentGoal;
+  DateTime? _streakStart;
+  int? _lastPraiseCheckDay;
 
   @override
   void initState() {
     super.initState();
     _loadGoal();
+    _loadStreakStart();
   }
 
   Future<void> _loadGoal() async {
@@ -43,6 +50,14 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     if (!mounted) return;
     setState(() {
       _currentGoal = goal;
+    });
+  }
+
+  Future<void> _loadStreakStart() async {
+    final date = await _streakService.getStartDate(widget.habitId);
+    if (!mounted) return;
+    setState(() {
+      _streakStart = date;
     });
   }
 
@@ -82,7 +97,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     final remaining = timerState is TimerPaused ? timerState.remainingSeconds : 0;
     final mm = (remaining ~/ 60).toString().padLeft(2, '0');
     final ss = (remaining % 60).toString().padLeft(2, '0');
-    if (habit.unit != null && habit.unit!.contains('час')) {
+    if (habit.unit != null &&
+        (habit.unit!.contains('час') || habit.unit!.contains('hour'))) {
       final hours = (remaining ~/ 3600).toString().padLeft(2, '0');
       final min = ((remaining % 3600) ~/ 60).toString().padLeft(2, '0');
       return '$hours:$min:${ss}';
@@ -145,6 +161,30 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final filteredTracking = _filterTracking(tracking);
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final isRu = languageCode.startsWith('ru');
+    final displayHabit = HabitLocalizationService.localizedHabit(habit, languageCode);
+    final isQuitHabit = _streakService.isLikelyQuitHabit(habit.name);
+
+    final now = DateTime.now();
+    final yearStart = DateTime(now.year, 1, 1);
+    final dayOfYear = now.difference(yearStart).inDays + 1;
+    final todayKey = now.year * 1000 + dayOfYear;
+    if (_streakStart != null && _lastPraiseCheckDay != todayKey) {
+      _lastPraiseCheckDay = todayKey;
+      _streakService
+          .maybeBuild24hPraise(
+            habitId: habit.id,
+            from: _streakStart!,
+            habitName: displayHabit.name,
+            isQuitHabit: isQuitHabit,
+            isRu: isRu,
+          )
+          .then((message) {
+            if (message == null || !mounted) return;
+            InAppNotificationService().addMessage(message);
+          });
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -152,42 +192,136 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            habit.name,
+            displayHabit.name,
             style: theme.textTheme.displaySmall,
           ),
           const SizedBox(height: 8),
           Text(
-            habit.minimalAction,
+            displayHabit.minimalAction,
             style: theme.textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 10),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isQuitHabit
+                        ? (isRu ? 'Без вредной привычки' : 'Without bad habit')
+                        : (isRu ? 'Держусь полезной привычки' : 'Keeping good habit'),
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  StreamBuilder<int>(
+                    stream: Stream<int>.periodic(const Duration(seconds: 1), (x) => x),
+                    builder: (context, _) {
+                      if (_streakStart == null) {
+                        return Text(
+                          isRu
+                              ? 'Дата старта не задана'
+                              : 'Start date is not set',
+                        );
+                      }
+                      final elapsed = _streakService.elapsedText(
+                        _streakStart!,
+                        DateTime.now(),
+                        isRu,
+                      );
+                      return Text(
+                        isQuitHabit
+                            ? (isRu ? 'Уже без: $elapsed' : 'Already without: $elapsed')
+                            : (isRu ? 'Уже держусь: $elapsed' : 'Already keeping: $elapsed'),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now(),
+                            initialDate: _streakStart ?? DateTime.now(),
+                          );
+                          if (picked == null) return;
+                          await _streakService.setStartDate(widget.habitId, picked);
+                          if (!mounted) return;
+                          setState(() {
+                            _streakStart = picked;
+                          });
+                        },
+                        icon: const Icon(Icons.event),
+                        label: Text(isRu ? 'Задать дату отказа/старта' : 'Set start/quit date'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          final now = DateTime.now();
+                          await _streakService.setStartDate(widget.habitId, now);
+                          if (!mounted) return;
+                          setState(() {
+                            _streakStart = now;
+                          });
+                        },
+                        child: Text(isRu ? 'Начать сейчас' : 'Start now'),
+                      ),
+                      if (isQuitHabit)
+                        FilledButton.tonal(
+                          onPressed: () async {
+                            final now = DateTime.now();
+                            await _streakService.setStartDate(widget.habitId, now);
+                            if (!mounted) return;
+                            setState(() {
+                              _streakStart = now;
+                            });
+                            final msg = isRu
+                                ? 'Ничего страшного, срыв бывает. Вы стараетесь, и это уже прогресс. Начинаем заново с этого момента.'
+                                : 'It is okay to slip. You are trying, and that is progress. Starting again from this moment.';
+                            await InAppNotificationService().addMessage(msg);
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(SnackBar(content: Text(msg)));
+                          },
+                          child: Text(isRu ? 'Не выдержал' : 'I slipped'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: () async {
               final advice =
-                  await _adviceService.getAdviceForHabit(habit.id, habit.name);
+                  await _adviceService.getAdviceForHabit(habit.id, displayHabit.name);
               if (!mounted) return;
               showDialog(
                 context: context,
                 builder: (_) => AlertDialog(
-                  title: const Text('Совет по привычке'),
+                  title: Text(isRu ? 'Совет по привычке' : 'Habit tip'),
                   content: Text(advice),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Понятно'),
+                      child: Text(isRu ? 'Понятно' : 'OK'),
                     ),
                   ],
                 ),
               );
             },
             icon: const Icon(Icons.lightbulb_outline),
-            label: const Text('Совет'),
+            label: Text(isRu ? 'Совет' : 'Tip'),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () => _showGoalDialog(context),
+            onPressed: () => _showGoalDialog(context, habit, languageCode),
             icon: const Icon(Icons.flag_outlined),
-            label: const Text('Цель'),
+            label: Text(isRu ? 'Цель' : 'Goal'),
           ),
           if (_currentGoal != null && _currentGoal!.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -198,13 +332,21 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Текущая цель: $_currentGoal',
+                      isRu ? 'Текущая цель: $_currentGoal' : 'Current goal: $_currentGoal',
                       style: theme.textTheme.titleMedium,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
                     ..._goalService
-                        .buildPlanForGoal(_currentGoal!)
-                        .map((step) => Text('• $step')),
+                        .buildPlanForGoal(_currentGoal!, languageCode)
+                        .map(
+                          (step) => Text(
+                            '• $step',
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                   ],
                 ),
               ),
@@ -223,12 +365,12 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Цель: ${habit.targetValue} ${habit.unit ?? ""}',
+                    '${isRu ? 'Цель' : 'Target'}: ${habit.targetValue} ${displayHabit.unit ?? ""}',
                     style: theme.textTheme.titleMedium,
                   ),
                   IconButton(
                     icon: const Icon(Icons.trending_up),
-                    tooltip: 'Повысить планку',
+                    tooltip: isRu ? 'Повысить планку' : 'Increase target',
                     onPressed: () => _showIncreaseGoalDialog(context, habit),
                   ),
                 ],
@@ -256,7 +398,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                         children: [
                           const Icon(Icons.pause_circle_outline),
                           const SizedBox(width: 8),
-                          Text('Пауза. Осталось: $remainingText'),
+                          Text(isRu ? 'Пауза. Осталось: $remainingText' : 'Paused. Left: $remainingText'),
                         ],
                       ),
                     ),
@@ -283,11 +425,17 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     if (timerState is TimerPaused &&
                         timerState.habitId == habit.id &&
                         habit.goalType == 'time') {
-                      return Text('Продолжить (${_formatRemaining(timerState, habit)})');
+                      return Text(
+                        isRu
+                            ? 'Продолжить (${_formatRemaining(timerState, habit)})'
+                            : 'Continue (${_formatRemaining(timerState, habit)})',
+                      );
                     }
                     return Text(
                       habit.goalType == 'time' && habit.targetValue != null
-                          ? 'Начать на ${habit.targetValue} ${habit.unit ?? ""}'
+                          ? (isRu
+                              ? 'Начать на ${habit.targetValue} ${displayHabit.unit ?? ""}'
+                              : 'Start for ${habit.targetValue} ${displayHabit.unit ?? ""}')
                           : l10n.start30Seconds,
                     );
                   },
@@ -308,15 +456,15 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildRangeChip('1 день', HistoryRange.day1),
-              _buildRangeChip('3 дня', HistoryRange.day3),
-              _buildRangeChip('Неделя', HistoryRange.week),
-              _buildRangeChip('Месяц', HistoryRange.month),
+              _buildRangeChip(isRu ? '1 день' : '1 day', HistoryRange.day1),
+              _buildRangeChip(isRu ? '3 дня' : '3 days', HistoryRange.day3),
+              _buildRangeChip(isRu ? 'Неделя' : 'Week', HistoryRange.week),
+              _buildRangeChip(isRu ? 'Месяц' : 'Month', HistoryRange.month),
               ActionChip(
                 label: Text(
                   _selectedRange == HistoryRange.custom && _customRange != null
                       ? '${_customRange!.start.day}.${_customRange!.start.month} - ${_customRange!.end.day}.${_customRange!.end.month}'
-                      : 'Свой период',
+                      : (isRu ? 'Свой период' : 'Custom range'),
                 ),
                 onPressed: () async {
                   final range = await showDateRangePicker(
@@ -341,7 +489,11 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Text(
-                  tracking.isEmpty ? l10n.noTrackingYet : 'За выбранный период записей нет',
+                  tracking.isEmpty
+                      ? l10n.noTrackingYet
+                      : (isRu
+                          ? 'За выбранный период записей нет'
+                          : 'No records for selected range'),
                 ),
               ),
             )
@@ -451,9 +603,14 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     );
   }
 
-  Future<void> _showGoalDialog(BuildContext context) async {
+  Future<void> _showGoalDialog(
+    BuildContext context,
+    Habit habit,
+    String languageCode,
+  ) async {
     final controller = TextEditingController(text: _currentGoal ?? '');
-    String selectedTemplate = HabitGoalService.readingGoalTemplates.first;
+    final templates = _goalService.templatesForHabit(habit.name, languageCode);
+    String? selectedTemplate = templates.isNotEmpty ? templates.first : null;
 
     await showDialog<void>(
       context: context,
@@ -465,27 +622,32 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Шаблоны целей:'),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedTemplate,
-                  items: HabitGoalService.readingGoalTemplates
-                      .map(
-                        (t) => DropdownMenuItem<String>(
-                          value: t,
-                          child: Text(t),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setModalState(() {
-                      selectedTemplate = value;
-                    });
-                    controller.text = value;
-                  },
-                ),
-                const SizedBox(height: 12),
+                if (templates.isNotEmpty) ...[
+                  const Text('Шаблоны целей под эту привычку:'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedTemplate,
+                    items: templates
+                        .map(
+                          (t) => DropdownMenuItem<String>(
+                            value: t,
+                            child: Text(t),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setModalState(() {
+                        selectedTemplate = value;
+                      });
+                      controller.text = value;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  const Text('Для этой привычки нет готовых шаблонов. Введите цель вручную.'),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
                   controller: controller,
                   maxLines: 3,

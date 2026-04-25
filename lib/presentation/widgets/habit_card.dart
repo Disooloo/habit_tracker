@@ -5,6 +5,7 @@ import '../../../domain/entities/habit.dart';
 import '../../../domain/entities/habit_tracking.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../services/habit_localization_service.dart';
 import '../bloc/habit/habit_bloc.dart';
 import '../bloc/habit/habit_event.dart';
 import '../screens/timer/timer_screen.dart';
@@ -26,17 +27,13 @@ class HabitCard extends StatelessWidget {
     this.pausedRemainingSeconds,
   });
 
-  static const List<String> _aboveNormMessages = [
-    'Вы выполнили выше нормы, вы молодец!',
-    'Супер! Сегодня результат выше плана.',
-    'Отличная работа: вы сделали больше, чем запланировали.',
-    'Так держать! Превышение цели - это сильный прогресс.',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final isRu = languageCode.startsWith('ru');
+    final displayHabit = HabitLocalizationService.localizedHabit(habit, languageCode);
 
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 300),
@@ -63,18 +60,22 @@ class HabitCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
               Text(
-                habit.name,
+                displayHabit.name,
                 style: theme.textTheme.titleLarge,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               Text(
-                habit.minimalAction,
+                displayHabit.minimalAction,
                 style: theme.textTheme.bodyMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 16),
               // Показываем прогресс для количественных/временных целей
               if (habit.goalType != null && habit.targetValue != null) ...[
-                _buildProgressIndicator(context, habit, todayTracking),
+                _buildProgressIndicator(context, displayHabit, todayTracking),
                 const SizedBox(height: 8),
               ],
               // Динамическая кнопка для привычек со временем
@@ -100,7 +101,7 @@ class HabitCard extends StatelessWidget {
                         );
                       },
                       icon: const Icon(Icons.play_circle_outline),
-                      label: Text(_getTimerButtonText(habit, pausedRemainingSeconds)),
+                      label: Text(_getTimerButtonText(displayHabit, pausedRemainingSeconds, isRu)),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -111,7 +112,7 @@ class HabitCard extends StatelessWidget {
               ],
               // Показываем текущий статус если есть
               if (todayTracking != null) ...[
-                _buildCurrentStatus(context, todayTracking!),
+                _buildCurrentStatus(context, todayTracking!, languageCode),
                 const SizedBox(height: 8),
               ],
               Row(
@@ -319,6 +320,20 @@ class HabitCard extends StatelessWidget {
   }
 
   void _incrementQuantity(BuildContext context, Habit habit, HabitTracking? tracking) {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
+    final aboveNormMessages = isRu
+        ? <String>[
+            'Вы выполнили выше нормы, вы молодец!',
+            'Супер! Сегодня результат выше плана.',
+            'Отличная работа: вы сделали больше, чем запланировали.',
+            'Так держать! Превышение цели - это сильный прогресс.',
+          ]
+        : <String>[
+            'You exceeded your target today. Great job!',
+            'Awesome! Your result is above plan today.',
+            'Excellent work: you did more than planned.',
+            'Keep it up! Exceeding the goal is strong progress.',
+          ];
     final current = tracking?.currentValue ?? 0;
     final newValue = current + 1;
     final target = habit.targetValue ?? 1;
@@ -340,8 +355,8 @@ class HabitCard extends StatelessWidget {
     );
 
     if (habit.targetValue != null && newValue > habit.targetValue!) {
-      final idx = DateTime.now().millisecond % _aboveNormMessages.length;
-      final message = _aboveNormMessages[idx];
+      final idx = DateTime.now().millisecond % aboveNormMessages.length;
+      final message = aboveNormMessages[idx];
       InAppNotificationService().addMessage('${habit.name}: $message');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -365,21 +380,22 @@ class HabitCard extends StatelessWidget {
         );
   }
 
-  String _getTimerButtonText(Habit habit, int? pausedRemainingSeconds) {
+  String _getTimerButtonText(Habit habit, int? pausedRemainingSeconds, bool isRu) {
     if (pausedRemainingSeconds != null && pausedRemainingSeconds > 0) {
       final mm = (pausedRemainingSeconds ~/ 60).toString().padLeft(2, '0');
       final ss = (pausedRemainingSeconds % 60).toString().padLeft(2, '0');
-      return 'Продолжить ($mm:$ss)';
+      return isRu ? 'Продолжить ($mm:$ss)' : 'Continue ($mm:$ss)';
     }
     if (habit.goalType == 'time' && habit.targetValue != null) {
       final value = habit.targetValue!;
-      final unit = habit.unit ?? 'минут';
-      return 'Начать на $value $unit';
+      final unit = habit.unit ?? 'minutes';
+      return isRu ? 'Начать на $value $unit' : 'Start for $value $unit';
     }
-    return 'Начать';
+    return isRu ? 'Начать' : 'Start';
   }
 
-  Widget _buildCurrentStatus(BuildContext context, HabitTracking tracking) {
+  Widget _buildCurrentStatus(BuildContext context, HabitTracking tracking, String languageCode) {
+    final isRu = languageCode.startsWith('ru');
     Color statusColor;
     IconData statusIcon;
     String statusText;
@@ -387,15 +403,15 @@ class HabitCard extends StatelessWidget {
     if (tracking.status == AppConstants.statusDone) {
       statusColor = AppTheme.successColor;
       statusIcon = Icons.check_circle;
-      statusText = 'Выполнено сегодня';
+      statusText = isRu ? 'Выполнено сегодня' : 'Done today';
     } else if (tracking.status == AppConstants.statusPartial) {
       statusColor = AppTheme.partialColor;
       statusIcon = Icons.radio_button_checked;
-      statusText = 'Сделано немного сегодня';
+      statusText = isRu ? 'Сделано немного сегодня' : 'Some progress today';
     } else {
       statusColor = AppTheme.neutralColor;
       statusIcon = Icons.circle_outlined;
-      statusText = 'Пропущено сегодня';
+      statusText = isRu ? 'Пропущено сегодня' : 'Skipped today';
     }
 
     return Container(

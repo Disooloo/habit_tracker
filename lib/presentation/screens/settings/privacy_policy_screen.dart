@@ -5,30 +5,51 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     return Scaffold(
-      appBar: AppBar(title: const Text('Политика конфиденциальности')),
+      appBar: AppBar(
+        title: Text(isRu ? 'Политика конфиденциальности' : 'Privacy Policy'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: const [
+        children: [
           Text(
-            'Мы уважаем вашу приватность и храним данные локально на вашем устройстве.',
-            style: TextStyle(fontSize: 16),
+            isRu
+                ? 'Мы уважаем вашу приватность и храним данные локально на вашем устройстве.'
+                : 'We respect your privacy and store data locally on your device.',
+            style: const TextStyle(fontSize: 16),
           ),
-          SizedBox(height: 12),
-          Text('1. Какие данные хранятся'),
-          Text('Привычки, трекинг, заметки дневника, настройки уведомлений и приложения.'),
-          SizedBox(height: 12),
-          Text('2. Где хранятся данные'),
-          Text('Данные сохраняются локально на устройстве пользователя.'),
-          SizedBox(height: 12),
-          Text('3. Передача третьим лицам'),
-          Text('Мы не передаем персональные данные третьим лицам в текущей версии приложения.'),
-          SizedBox(height: 12),
-          Text('4. Удаление данных'),
-          Text('Вы можете удалить все данные через раздел настроек: "Сбросить все привычки и записи".'),
-          SizedBox(height: 12),
-          Text('5. Контакты'),
-          Text('По вопросам приватности: shantsev.a.e@yandex.ru'),
+          const SizedBox(height: 12),
+          Text(isRu ? '1. Какие данные хранятся' : '1. What data is stored'),
+          Text(
+            isRu
+                ? 'Привычки, трекинг, заметки дневника, настройки уведомлений и приложения.'
+                : 'Habits, tracking history, diary notes, notification settings, and app settings.',
+          ),
+          const SizedBox(height: 12),
+          Text(isRu ? '2. Где хранятся данные' : '2. Where data is stored'),
+          Text(
+            isRu
+                ? 'Данные сохраняются локально на устройстве пользователя.'
+                : 'Data is stored locally on the user device.',
+          ),
+          const SizedBox(height: 12),
+          Text(isRu ? '3. Передача третьим лицам' : '3. Third-party sharing'),
+          Text(
+            isRu
+                ? 'Мы не передаем персональные данные третьим лицам в текущей версии приложения.'
+                : 'We do not share personal data with third parties in the current app version.',
+          ),
+          const SizedBox(height: 12),
+          Text(isRu ? '4. Удаление данных' : '4. Data deletion'),
+          Text(
+            isRu
+                ? 'Вы можете удалить все данные через настройки: "Сбросить все привычки и записи".'
+                : 'You can remove all data in settings via "Reset all habits and records".',
+          ),
+          const SizedBox(height: 12),
+          Text(isRu ? '5. Контакты' : '5. Contacts'),
+          const Text('shantsev.a.e@yandex.ru'),
         ],
       ),
     );

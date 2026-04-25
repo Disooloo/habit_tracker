@@ -17,6 +17,7 @@ class TimerWidget extends StatelessWidget {
     final minutes = remainingSeconds ~/ 60;
     final seconds = remainingSeconds % 60;
     final formatted = '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
 
     return SizedBox(
       width: 200,
@@ -47,7 +48,7 @@ class TimerWidget extends StatelessWidget {
                 ),
               ),
               Text(
-                'минуты : секунды',
+                isRu ? 'минуты : секунды' : 'minutes : seconds',
                 style: theme.textTheme.bodyMedium,
               ),
             ],
