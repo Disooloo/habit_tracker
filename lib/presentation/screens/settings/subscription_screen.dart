@@ -208,6 +208,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       ),
       body: ListView(
         children: [
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              isRu
+                  ? 'Оплата подписок пока не подключена. Спасибо за понимание.'
+                  : 'Subscription payments are not connected yet. Thank you for understanding.',
+            ),
+          ),
           if (_activePlan != null && _activeUntil != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),

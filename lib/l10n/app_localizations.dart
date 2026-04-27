@@ -403,6 +403,336 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Начните отслеживать свою привычку'**
   String get startTracking;
+
+  /// No description provided for @homeTab.
+  ///
+  /// In ru, this message translates to:
+  /// **'Главная'**
+  String get homeTab;
+
+  /// No description provided for @profileTab.
+  ///
+  /// In ru, this message translates to:
+  /// **'Профиль'**
+  String get profileTab;
+
+  /// No description provided for @signInToAccount.
+  ///
+  /// In ru, this message translates to:
+  /// **'Войдите в аккаунт'**
+  String get signInToAccount;
+
+  /// No description provided for @profileSignInSubtitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сохраняйте профиль, дату регистрации и тарифный план.'**
+  String get profileSignInSubtitle;
+
+  /// No description provided for @signInOrRegister.
+  ///
+  /// In ru, this message translates to:
+  /// **'Войти или зарегистрироваться'**
+  String get signInOrRegister;
+
+  /// No description provided for @defaultUserName.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пользователь'**
+  String get defaultUserName;
+
+  /// No description provided for @planFree.
+  ///
+  /// In ru, this message translates to:
+  /// **'Бесплатный'**
+  String get planFree;
+
+  /// No description provided for @emailLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Email'**
+  String get emailLabel;
+
+  /// No description provided for @phoneLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Телефон'**
+  String get phoneLabel;
+
+  /// No description provided for @notSpecified.
+  ///
+  /// In ru, this message translates to:
+  /// **'не указан'**
+  String get notSpecified;
+
+  /// No description provided for @registrationDate.
+  ///
+  /// In ru, this message translates to:
+  /// **'Дата регистрации'**
+  String get registrationDate;
+
+  /// No description provided for @editName.
+  ///
+  /// In ru, this message translates to:
+  /// **'Редактировать имя'**
+  String get editName;
+
+  /// No description provided for @nameFieldLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Имя'**
+  String get nameFieldLabel;
+
+  /// No description provided for @signOut.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выйти'**
+  String get signOut;
+
+  /// No description provided for @authTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Авторизация'**
+  String get authTitle;
+
+  /// No description provided for @authSubtitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вход по номеру может открыть проверку reCAPTCHA, это нормально.'**
+  String get authSubtitle;
+
+  /// No description provided for @enterNameError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Введите имя'**
+  String get enterNameError;
+
+  /// No description provided for @enterValidEmailError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Введите корректный email'**
+  String get enterValidEmailError;
+
+  /// No description provided for @passwordLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пароль'**
+  String get passwordLabel;
+
+  /// No description provided for @minPasswordError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Минимум 6 символов'**
+  String get minPasswordError;
+
+  /// No description provided for @registerAction.
+  ///
+  /// In ru, this message translates to:
+  /// **'Зарегистрироваться'**
+  String get registerAction;
+
+  /// No description provided for @signInAction.
+  ///
+  /// In ru, this message translates to:
+  /// **'Войти'**
+  String get signInAction;
+
+  /// No description provided for @haveAccountSignIn.
+  ///
+  /// In ru, this message translates to:
+  /// **'Уже есть аккаунт? Войти'**
+  String get haveAccountSignIn;
+
+  /// No description provided for @noAccountRegister.
+  ///
+  /// In ru, this message translates to:
+  /// **'Нет аккаунта? Зарегистрироваться'**
+  String get noAccountRegister;
+
+  /// No description provided for @phoneHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Телефон (+79991234567)'**
+  String get phoneHint;
+
+  /// No description provided for @phoneHintDigitsOnly.
+  ///
+  /// In ru, this message translates to:
+  /// **'Номер телефона'**
+  String get phoneHintDigitsOnly;
+
+  /// No description provided for @phoneNoPrefixHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Введите только цифры без 8 и без +7'**
+  String get phoneNoPrefixHint;
+
+  /// No description provided for @phoneRuLengthError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Для РФ номер должен содержать 10 цифр, например 9998887766'**
+  String get phoneRuLengthError;
+
+  /// No description provided for @smsCodeLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Код из SMS'**
+  String get smsCodeLabel;
+
+  /// No description provided for @confirmCodeAction.
+  ///
+  /// In ru, this message translates to:
+  /// **'Подтвердить код'**
+  String get confirmCodeAction;
+
+  /// No description provided for @getCodeAction.
+  ///
+  /// In ru, this message translates to:
+  /// **'Получить код'**
+  String get getCodeAction;
+
+  /// No description provided for @googleSignIn.
+  ///
+  /// In ru, this message translates to:
+  /// **'Войти через Google'**
+  String get googleSignIn;
+
+  /// No description provided for @authError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ошибка авторизации'**
+  String get authError;
+
+  /// No description provided for @signInFailed.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не удалось выполнить вход'**
+  String get signInFailed;
+
+  /// No description provided for @googleSignInError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ошибка Google входа'**
+  String get googleSignInError;
+
+  /// No description provided for @googleSignInFailed.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не удалось войти через Google'**
+  String get googleSignInFailed;
+
+  /// No description provided for @enterPhoneError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Введите номер телефона'**
+  String get enterPhoneError;
+
+  /// No description provided for @smsSendError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не удалось отправить код'**
+  String get smsSendError;
+
+  /// No description provided for @phoneSignInError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ошибка входа по телефону'**
+  String get phoneSignInError;
+
+  /// No description provided for @phoneSignInFailed.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не удалось выполнить вход по телефону'**
+  String get phoneSignInFailed;
+
+  /// No description provided for @subscriptionStatus.
+  ///
+  /// In ru, this message translates to:
+  /// **'Статус подписки'**
+  String get subscriptionStatus;
+
+  /// No description provided for @proBenefitUnlimitedHabits.
+  ///
+  /// In ru, this message translates to:
+  /// **'Безлимитное количество привычек'**
+  String get proBenefitUnlimitedHabits;
+
+  /// No description provided for @proBenefitPrioritySupport.
+  ///
+  /// In ru, this message translates to:
+  /// **'Приоритетная поддержка и ранний доступ'**
+  String get proBenefitPrioritySupport;
+
+  /// No description provided for @freeBenefitHabitLimit.
+  ///
+  /// In ru, this message translates to:
+  /// **'Лимит базового тарифа по количеству привычек'**
+  String get freeBenefitHabitLimit;
+
+  /// No description provided for @freeBenefitBasicSupport.
+  ///
+  /// In ru, this message translates to:
+  /// **'Базовая поддержка и стандартные функции'**
+  String get freeBenefitBasicSupport;
+
+  /// No description provided for @changeAvatar.
+  ///
+  /// In ru, this message translates to:
+  /// **'Изменить фото профиля'**
+  String get changeAvatar;
+
+  /// No description provided for @avatarUpdated.
+  ///
+  /// In ru, this message translates to:
+  /// **'Фото профиля обновлено'**
+  String get avatarUpdated;
+
+  /// No description provided for @avatarUpdateFailed.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не удалось обновить фото профиля'**
+  String get avatarUpdateFailed;
+
+  /// No description provided for @accountManagement.
+  ///
+  /// In ru, this message translates to:
+  /// **'Управление аккаунтом'**
+  String get accountManagement;
+
+  /// No description provided for @changeEmail.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сменить email'**
+  String get changeEmail;
+
+  /// No description provided for @changePassword.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сменить пароль'**
+  String get changePassword;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить аккаунт'**
+  String get deleteAccount;
+
+  /// No description provided for @deleteAccountConfirm.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вы уверены? Аккаунт и профиль будут удалены без возможности восстановления.'**
+  String get deleteAccountConfirm;
+
+  /// No description provided for @emailUpdateSent.
+  ///
+  /// In ru, this message translates to:
+  /// **'Письмо для подтверждения нового email отправлено'**
+  String get emailUpdateSent;
+
+  /// No description provided for @passwordUpdated.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пароль обновлен'**
+  String get passwordUpdated;
 }
 
 class _AppLocalizationsDelegate

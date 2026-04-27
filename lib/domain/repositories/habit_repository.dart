@@ -12,6 +12,7 @@ abstract class HabitRepository {
 
   // Tracking methods
   Future<void> trackHabit(HabitTracking tracking);
+  Future<void> deleteTrackingById(int trackingId);
   Future<List<HabitTracking>> getTrackingByHabitId(int habitId);
   Future<HabitTracking?> getTrackingByHabitIdAndDate(int habitId, String date);
   Future<List<HabitTracking>> getTrackingByDateRange(String startDate, String endDate);

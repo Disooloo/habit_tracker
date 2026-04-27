@@ -4,205 +4,175 @@ class HabitGoalService {
   static const String _goalPrefix = 'habit_goal_';
 
   static final Map<String, List<String>> _ruTemplatesByKeyword = {
+    // Good habits
     'чтен': [
-      'Концентрация при чтении 20 минут без отвлечений',
-      'Читать быстрее: +5 страниц в день',
-      'Читать 30 минут каждый вечер',
-      'Понимать материал глубже: конспект после чтения',
-    ],
-    'книг': [
-      'Прочитывать 1 книгу в месяц',
-      'Читать каждый день минимум 20 минут',
-      'Делать заметки после каждой главы',
+      'Читать 20 минут без отвлечений 5 дней в неделю',
+      'Завершить 1 книгу за 30 дней с коротким конспектом',
+      'Читать 10 страниц перед сном каждый день',
+      'Разбирать 1 идею из книги и применять ее в течение недели',
     ],
     'спорт': [
-      'Тренироваться 3 раза в неделю',
-      'Сделать 10000 шагов за день',
-      'Увеличивать нагрузку на 5% каждую неделю',
+      'Тренироваться 3 раза в неделю минимум по 30 минут',
+      'Сделать 10 тренировок за месяц без пропусков подряд более 2 дней',
+      'Повышать нагрузку на 5% раз в 2 недели',
+      'Укрепить выносливость: 40 минут активности в одном темпе',
     ],
     'бег': [
-      'Бегать 20 минут без остановки',
-      'Пробежать 5 км за тренировку',
-      'Бегать 3 раза в неделю',
+      'Пробегать 3 км 3 раза в неделю',
+      'Увеличить дистанцию до 5 км за 6 недель',
+      'Поддерживать пульс в комфортной зоне 25 минут',
+      'Сделать 12 пробежек в месяц без длинных перерывов',
     ],
     'вода': [
-      'Выпивать 6 стаканов воды каждый день',
-      'Пить воду в начале каждого часа',
-      'Всегда держать бутылку воды рядом',
-    ],
-    'прогул': [
-      'Проходить не менее 6000 шагов в день',
-      'Делать прогулку минимум 20 минут',
-      'Выходить на улицу 2 раза в день',
-    ],
-    'растяж': [
-      'Растягиваться 10 минут утром',
-      'Сделать 3 упражнения на мобильность ежедневно',
-      'Отмечать растяжку 7 дней подряд',
-    ],
-    'кур': [
-      'Сокращать количество сигарет каждую неделю',
-      'Удерживаться от курения 4 часа подряд',
-      'Заменять тягу дыханием и водой',
-    ],
-    'алког': [
-      'Провести 7 дней без алкоголя',
-      'Выбирать безалкогольные альтернативы на встречах',
-      'Сократить поводы употребления вдвое',
-    ],
-    'глубок': [
-      'Работать 45 минут в режиме глубокой концентрации',
-      'Сделать 2 сессии deep work в день',
-      'Уменьшить отвлечения до 1 за сессию',
-    ],
-    'слад': [
-      'Провести 7 дней без сладкого на ночь',
-      'Заменять вечерний десерт на полезный перекус',
-      'Ограничить сладкое до 2 порций в неделю',
-    ],
-    'переед': [
-      'Оставлять небольшой запас сытости после еды',
-      'Есть медленно не менее 15 минут',
-      'Избегать позднего переедания 5 дней подряд',
-    ],
-    'соцсет': [
-      'Не использовать соцсети за 1 час до сна',
-      'Сократить экранное время на 20%',
-      'Держать 2 окна без телефона в день',
-    ],
-    'цифров': [
-      'Делать цифровой детокс 30 минут ежедневно',
-      'Проверять мессенджеры по расписанию 3 раза в день',
-      'Отключить лишние уведомления и держать фокус',
-    ],
-    'коммуник': [
-      'Практиковать активное слушание в 1 разговоре в день',
-      'Поддерживать контакт с близкими минимум 3 раза в неделю',
-      'Говорить спокойно и без резких реакций',
+      'Выпивать 6-8 стаканов воды ежедневно',
+      'Выпивать 1 стакан воды в первые 15 минут после пробуждения',
+      'Держать бутылку воды рядом в течение рабочего дня',
+      'Снизить сладкие напитки до 1 порции в неделю',
     ],
     'сон': [
-      'Спать не менее 8 часов 5 дней подряд',
-      'Ложиться до 23:00 всю неделю',
-      'Стабилизировать режим сна и подъема',
+      'Ложиться до 23:30 минимум 5 дней в неделю',
+      'Спать 7.5-8 часов в среднем за неделю',
+      'Убрать экран за 40 минут до сна каждый вечер',
+      'Просыпаться в стабильное время с разбросом не более 30 минут',
     ],
-    'подъ': [
-      'Просыпаться в выбранное время 7 дней подряд',
-      'Уменьшить утреннюю сонливость за 2 недели',
-      'Закрепить ранний подъем без откладывания будильника',
+    'медитац': [
+      'Медитировать 10 минут 5 дней в неделю',
+      'Сделать 14 дней подряд хотя бы по 5 минут практики',
+      'Добавить короткую практику дыхания после стресса',
+      'Держать суммарно 120 минут медитации в месяц',
+    ],
+    // Quit habits
+    'кур': [
+      'Снизить количество сигарет на 20% за 2 недели',
+      'Прожить 7 дней без курения после 18:00',
+      'Закрепить 30 дней без сигарет',
+      'Заменять каждый импульс к курению 2 минутами дыхания',
+    ],
+    'алког': [
+      'Сделать 21 день без алкоголя',
+      'Ограничить употребление до 1 повода в неделю',
+      'Заменять алкоголь на безалкогольные альтернативы на встречах',
+      'Убрать спонтанные покупки алкоголя на месяц',
+    ],
+    'слад': [
+      'Не есть сладкое после ужина 14 дней подряд',
+      'Ограничить сладкое до 2 порций в неделю',
+      'Заменять десерт фруктом или йогуртом 5 дней в неделю',
+      'Снизить добавленный сахар до выбранного дневного лимита',
+    ],
+    'соцсет': [
+      'Сократить соцсети до 40 минут в день',
+      'Не открывать соцсети в первый час после пробуждения',
+      'Сделать 2 окна фокуса без телефона по 45 минут в день',
+      'Проводить 1 день в неделю с минимальным экранным временем',
     ],
     'энерг': [
-      'Провести 7 дней без энергетиков',
-      'Заменять энергетик водой или чаем',
-      'Уменьшить тягу к стимуляторам каждую неделю',
+      'Отказаться от энергетиков на 30 дней',
+      'Заменить энергетик водой или чаем каждый раз при тяге',
+      'Снизить кофеин после 14:00 до нуля',
+      'Поддерживать энергию через сон и активность вместо стимуляторов',
     ],
   };
 
   static final Map<String, List<String>> _enTemplatesByKeyword = {
     'read': [
-      'Read 20 minutes with full focus',
-      'Increase speed by +5 pages per day',
-      'Read every evening for 30 minutes',
-      'Write brief notes after reading',
-    ],
-    'book': [
-      'Finish 1 book per month',
-      'Read at least 20 minutes daily',
-      'Capture one key insight after each chapter',
+      'Read 20 focused minutes at least 5 days per week',
+      'Finish 1 book in 30 days with short notes',
+      'Read 10 pages before sleep every day',
+      'Apply one key idea from reading each week',
     ],
     'sport': [
-      'Train 3 times per week',
-      'Reach 10,000 steps per day',
-      'Increase load by 5% weekly',
+      'Train 3 times per week for at least 30 minutes',
+      'Complete 10 workouts per month with no long breaks',
+      'Increase training load by 5% every 2 weeks',
+      'Build endurance with 40 minutes of steady activity',
     ],
     'run': [
-      'Run 20 minutes without stopping',
-      'Run 5 km per session',
-      'Run 3 times per week',
+      'Run 3 km, 3 times per week',
+      'Grow to 5 km distance within 6 weeks',
+      'Keep a comfortable heart-rate zone for 25 minutes',
+      'Complete 12 runs in a month consistently',
     ],
     'water': [
-      'Drink 6 glasses of water every day',
-      'Drink water every hour',
-      'Keep a water bottle nearby all day',
-    ],
-    'walk': [
-      'Walk at least 6,000 steps per day',
-      'Take a 20-minute walk daily',
-      'Go outside twice a day',
-    ],
-    'stretch': [
-      'Stretch for 10 minutes in the morning',
-      'Do 3 mobility exercises daily',
-      'Keep a 7-day stretching streak',
-    ],
-    'smok': [
-      'Reduce cigarettes week by week',
-      'Stay smoke-free for 4 hours blocks',
-      'Replace craving with breathing and water',
-    ],
-    'alco': [
-      'Keep 7 alcohol-free days',
-      'Choose non-alcohol options at meetings',
-      'Cut drinking occasions by half',
-    ],
-    'deep work': [
-      'Work 45 minutes in deep focus mode',
-      'Complete 2 deep work sessions daily',
-      'Reduce distractions to 1 per session',
-    ],
-    'sweet': [
-      'Keep 7 nights without sweets',
-      'Replace late dessert with a healthy snack',
-      'Limit sweets to 2 portions per week',
-    ],
-    'overeat': [
-      'Stop eating at comfortable satiety',
-      'Eat slowly for at least 15 minutes',
-      'Avoid late overeating 5 days in a row',
-    ],
-    'social': [
-      'No social media during the last hour before sleep',
-      'Cut screen time by 20%',
-      'Have 2 no-phone windows every day',
-    ],
-    'digital': [
-      'Do a 30-minute digital detox daily',
-      'Check messengers on schedule 3 times a day',
-      'Turn off noisy notifications to keep focus',
-    ],
-    'communic': [
-      'Practice active listening in one conversation daily',
-      'Reach out to close people at least 3 times weekly',
-      'Communicate calmly without sharp reactions',
+      'Drink 6-8 glasses of water every day',
+      'Drink water within 15 minutes after waking up',
+      'Keep a water bottle visible during work hours',
+      'Reduce sugary drinks to one serving per week',
     ],
     'sleep': [
-      'Sleep at least 8 hours for 5 days in a row',
-      'Go to bed before 23:00 all week',
-      'Stabilize sleep and wake routine',
+      'Go to bed before 11:30 PM at least 5 days a week',
+      'Average 7.5-8 hours of sleep per week',
+      'No screen time 40 minutes before sleep',
+      'Keep wake-up time within a 30-minute window',
     ],
-    'wake': [
-      'Wake up at your target time for 7 days in a row',
-      'Reduce morning grogginess within 2 weeks',
-      'Keep early wake-up without snooze',
+    'meditat': [
+      'Meditate 10 minutes at least 5 days per week',
+      'Keep a 14-day streak with at least 5 minutes daily',
+      'Use a short breathing reset after stress',
+      'Reach 120 minutes of meditation per month',
+    ],
+    'smok': [
+      'Reduce cigarettes by 20% within 2 weeks',
+      'Stay smoke-free after 6 PM for 7 straight days',
+      'Build a 30-day smoke-free streak',
+      'Replace each craving with 2 minutes of breathing',
+    ],
+    'alco': [
+      'Stay alcohol-free for 21 days',
+      'Limit drinking to one occasion per week',
+      'Choose non-alcoholic alternatives at social events',
+      'Remove impulsive alcohol purchases for one month',
+    ],
+    'sweet': [
+      'No sweets after dinner for 14 days',
+      'Limit sweets to 2 portions per week',
+      'Replace dessert with fruit/yogurt 5 days weekly',
+      'Keep added sugar under your daily target',
+    ],
+    'social': [
+      'Limit social media to 40 minutes per day',
+      'No social media in the first hour after waking',
+      'Do 2 phone-free focus blocks of 45 minutes daily',
+      'Keep one low-screen day every week',
     ],
     'energy': [
-      'Keep 7 days without energy drinks',
+      'Quit energy drinks for 30 days',
       'Replace energy drinks with water or tea',
-      'Reduce stimulant cravings week by week',
+      'Keep caffeine intake after 2 PM at zero',
+      'Support energy with sleep and movement, not stimulants',
     ],
   };
 
   List<String> templatesForHabit(String habitName, String languageCode) {
     final lower = habitName.toLowerCase();
-    final result = <String>[];
-    final templatesMap = languageCode.startsWith('ru')
+    final map = languageCode.startsWith('ru')
         ? _ruTemplatesByKeyword
         : _enTemplatesByKeyword;
-    for (final entry in templatesMap.entries) {
+
+    final result = <String>[];
+    for (final entry in map.entries) {
       if (lower.contains(entry.key)) {
         result.addAll(entry.value);
       }
     }
-    return result;
+
+    if (result.isEmpty) {
+      return languageCode.startsWith('ru')
+          ? const [
+              'Стабильно выполнять привычку 5 дней в неделю',
+              'Удерживать минимальный шаг каждый день без пропусков более 1 дня',
+              'Поддерживать прогресс 30 дней и пересмотреть цель',
+              'Делать короткий итог по привычке в конце недели',
+            ]
+          : const [
+              'Keep the habit 5 days per week consistently',
+              'Maintain a minimum daily step without long gaps',
+              'Sustain progress for 30 days and review target',
+              'Write a short weekly reflection on progress',
+            ];
+    }
+
+    return result.take(4).toList();
   }
 
   Future<String?> getGoal(int habitId) async {
@@ -216,57 +186,20 @@ class HabitGoalService {
   }
 
   List<String> buildPlanForGoal(String goal, String languageCode) {
-    final lower = goal.toLowerCase();
     final isRu = languageCode.startsWith('ru');
-    if (lower.contains('чита') || lower.contains('книг') || lower.contains('read') || lower.contains('book')) {
-      return [
-        isRu
-            ? 'Выберите фиксированное время чтения и одно место без отвлечений'
-            : 'Choose a fixed reading time and one distraction-free place',
-        isRu
-            ? 'Начинайте с 10-15 минут и увеличивайте длительность постепенно'
-            : 'Start with 10-15 minutes and increase duration gradually',
-        isRu
-            ? 'После каждой сессии фиксируйте 1-2 мысли, чтобы закрепить результат'
-            : 'After each session write 1-2 insights to reinforce progress',
-      ];
-    }
-    if (lower.contains('концент') || lower.contains('focus')) {
-      return [
-        isRu
-            ? 'Отключите уведомления на время выполнения'
-            : 'Disable notifications during focus sessions',
-        isRu
-            ? 'Работайте короткими отрезками 20-25 минут'
-            : 'Work in short 20-25 minute blocks',
-        isRu
-            ? 'Делайте паузу 3-5 минут и повторяйте цикл'
-            : 'Take 3-5 minute breaks and repeat the cycle',
-      ];
-    }
-    if (lower.contains('быстр') || lower.contains('speed')) {
-      return [
-        isRu
-            ? 'Замеряйте текущий темп в начале недели'
-            : 'Measure your current pace at the start of each week',
-        isRu
-            ? 'Увеличивайте план на 5-10% раз в неделю'
-            : 'Increase target by 5-10% weekly',
-        isRu
-            ? 'Фокусируйтесь на регулярности, а не на рекордах'
-            : 'Focus on consistency rather than records',
-      ];
-    }
     return [
       isRu
-          ? 'Разбейте цель на маленькие ежедневные шаги'
-          : 'Break your goal into small daily steps',
+          ? 'Определи точное время и место выполнения (когда и где).'
+          : 'Define exact execution time and place (when and where).',
       isRu
-          ? 'Запланируйте конкретное время выполнения'
-          : 'Schedule a concrete execution time',
+          ? 'Начни с минимального шага и повышай нагрузку постепенно.'
+          : 'Start from a minimum step and increase load gradually.',
       isRu
-          ? 'Еженедельно пересматривайте прогресс и корректируйте план'
-          : 'Review progress weekly and adjust your plan',
+          ? 'Отслеживай результат ежедневно, даже если шаг был маленьким.'
+          : 'Track progress daily, even when the step is small.',
+      isRu
+          ? 'Раз в неделю проверяй прогресс и корректируй цель.'
+          : 'Review progress weekly and adjust the goal.',
     ];
   }
 
@@ -292,4 +225,3 @@ class HabitGoalService {
     }
   }
 }
-

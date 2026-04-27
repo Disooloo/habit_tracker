@@ -63,4 +63,17 @@ class LoadHabitDetail extends HabitEvent {
   List<Object?> get props => [habitId];
 }
 
+class DeleteTrackingEvent extends HabitEvent {
+  final int habitId;
+  final int trackingId;
+
+  const DeleteTrackingEvent({
+    required this.habitId,
+    required this.trackingId,
+  });
+
+  @override
+  List<Object?> get props => [habitId, trackingId];
+}
+
 

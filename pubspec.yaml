@@ -36,11 +36,25 @@ dependencies:
   # UI
   flutter_svg: ^2.0.9
   url_launcher: ^6.3.2
+  firebase_core: ^3.15.2
+  firebase_auth: ^5.6.0
+  cloud_firestore: ^5.6.9
+  google_sign_in: ^6.3.0
+  firebase_storage: ^12.4.10
+  image_picker: ^1.1.2
+  country_picker: ^2.0.27
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "lib/img/logo.jpg"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
@@ -48,4 +62,5 @@ flutter:
 
   assets:
     - promo_keys.json
+    - lib/img/logo.jpg
 

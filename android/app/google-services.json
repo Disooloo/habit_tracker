@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "985752960726",
+    "project_id": "habit-tracker-93873",
+    "storage_bucket": "habit-tracker-93873.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:985752960726:android:ca79ae040b8e5dfa925377",
+        "android_client_info": {
+          "package_name": "com.kroli.habittracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-gEoY2UyLS7jZYRHr5lUfXRLLxUlo7SA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

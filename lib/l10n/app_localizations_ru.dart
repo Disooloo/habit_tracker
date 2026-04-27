@@ -163,4 +163,177 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get startTracking => 'Начните отслеживать свою привычку';
+
+  @override
+  String get homeTab => 'Главная';
+
+  @override
+  String get profileTab => 'Профиль';
+
+  @override
+  String get signInToAccount => 'Войдите в аккаунт';
+
+  @override
+  String get profileSignInSubtitle =>
+      'Сохраняйте профиль, дату регистрации и тарифный план.';
+
+  @override
+  String get signInOrRegister => 'Войти или зарегистрироваться';
+
+  @override
+  String get defaultUserName => 'Пользователь';
+
+  @override
+  String get planFree => 'Бесплатный';
+
+  @override
+  String get emailLabel => 'Email';
+
+  @override
+  String get phoneLabel => 'Телефон';
+
+  @override
+  String get notSpecified => 'не указан';
+
+  @override
+  String get registrationDate => 'Дата регистрации';
+
+  @override
+  String get editName => 'Редактировать имя';
+
+  @override
+  String get nameFieldLabel => 'Имя';
+
+  @override
+  String get signOut => 'Выйти';
+
+  @override
+  String get authTitle => 'Авторизация';
+
+  @override
+  String get authSubtitle =>
+      'Вход по номеру может открыть проверку reCAPTCHA, это нормально.';
+
+  @override
+  String get enterNameError => 'Введите имя';
+
+  @override
+  String get enterValidEmailError => 'Введите корректный email';
+
+  @override
+  String get passwordLabel => 'Пароль';
+
+  @override
+  String get minPasswordError => 'Минимум 6 символов';
+
+  @override
+  String get registerAction => 'Зарегистрироваться';
+
+  @override
+  String get signInAction => 'Войти';
+
+  @override
+  String get haveAccountSignIn => 'Уже есть аккаунт? Войти';
+
+  @override
+  String get noAccountRegister => 'Нет аккаунта? Зарегистрироваться';
+
+  @override
+  String get phoneHint => 'Телефон (+79991234567)';
+
+  @override
+  String get phoneHintDigitsOnly => 'Номер телефона';
+
+  @override
+  String get phoneNoPrefixHint => 'Введите только цифры без 8 и без +7';
+
+  @override
+  String get phoneRuLengthError =>
+      'Для РФ номер должен содержать 10 цифр, например 9998887766';
+
+  @override
+  String get smsCodeLabel => 'Код из SMS';
+
+  @override
+  String get confirmCodeAction => 'Подтвердить код';
+
+  @override
+  String get getCodeAction => 'Получить код';
+
+  @override
+  String get googleSignIn => 'Войти через Google';
+
+  @override
+  String get authError => 'Ошибка авторизации';
+
+  @override
+  String get signInFailed => 'Не удалось выполнить вход';
+
+  @override
+  String get googleSignInError => 'Ошибка Google входа';
+
+  @override
+  String get googleSignInFailed => 'Не удалось войти через Google';
+
+  @override
+  String get enterPhoneError => 'Введите номер телефона';
+
+  @override
+  String get smsSendError => 'Не удалось отправить код';
+
+  @override
+  String get phoneSignInError => 'Ошибка входа по телефону';
+
+  @override
+  String get phoneSignInFailed => 'Не удалось выполнить вход по телефону';
+
+  @override
+  String get subscriptionStatus => 'Статус подписки';
+
+  @override
+  String get proBenefitUnlimitedHabits => 'Безлимитное количество привычек';
+
+  @override
+  String get proBenefitPrioritySupport =>
+      'Приоритетная поддержка и ранний доступ';
+
+  @override
+  String get freeBenefitHabitLimit =>
+      'Лимит базового тарифа по количеству привычек';
+
+  @override
+  String get freeBenefitBasicSupport =>
+      'Базовая поддержка и стандартные функции';
+
+  @override
+  String get changeAvatar => 'Изменить фото профиля';
+
+  @override
+  String get avatarUpdated => 'Фото профиля обновлено';
+
+  @override
+  String get avatarUpdateFailed => 'Не удалось обновить фото профиля';
+
+  @override
+  String get accountManagement => 'Управление аккаунтом';
+
+  @override
+  String get changeEmail => 'Сменить email';
+
+  @override
+  String get changePassword => 'Сменить пароль';
+
+  @override
+  String get deleteAccount => 'Удалить аккаунт';
+
+  @override
+  String get deleteAccountConfirm =>
+      'Вы уверены? Аккаунт и профиль будут удалены без возможности восстановления.';
+
+  @override
+  String get emailUpdateSent =>
+      'Письмо для подтверждения нового email отправлено';
+
+  @override
+  String get passwordUpdated => 'Пароль обновлен';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:habit_tracker/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../bloc/habit/habit_bloc.dart';
@@ -170,7 +171,19 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.hello),
+            StreamBuilder<User?>(
+              stream: FirebaseAuth.instance.authStateChanges(),
+              builder: (context, snapshot) {
+                final rawName = snapshot.data?.displayName?.trim();
+                final firstName = rawName == null || rawName.isEmpty
+                    ? null
+                    : rawName.split(RegExp(r'\s+')).first;
+                if (firstName == null || firstName.isEmpty) {
+                  return Text(l10n.hello);
+                }
+                return Text('${l10n.hello}, $firstName');
+              },
+            ),
             Text(
               l10n.canStartSmall,
               style: theme.textTheme.bodySmall,
@@ -515,51 +528,94 @@ class _HabitsListWidgetState extends State<_HabitsListWidget> {
                 ? timerState.remainingSeconds
                 : null;
 
-            return HabitCard(
-              key: ValueKey('habit_${habit.id}_${todayTracking?.currentValue ?? 0}'),
-              habit: habit,
-              todayTracking: todayTracking,
-              pausedRemainingSeconds: pausedRemainingSeconds,
-              onTap: () {
-                Navigator.of(context)
-                    .push(
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            HabitDetailScreen(habitId: habit.id),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          return SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(1.0, 0.0),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          );
-                        },
-                        transitionDuration: const Duration(milliseconds: 300),
+            return Dismissible(
+              key: ValueKey('habit_dismiss_${habit.id}'),
+              direction: DismissDirection.endToStart,
+              confirmDismiss: (_) async {
+                final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
+                return await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: Text(isRu ? 'Удалить привычку?' : 'Delete habit?'),
+                        content: Text(
+                          isRu
+                              ? 'Привычка будет удалена вместе с историей.'
+                              : 'The habit and its history will be deleted.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(false),
+                            child: Text(isRu ? 'Отмена' : 'Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(true),
+                            child: Text(isRu ? 'Удалить' : 'Delete'),
+                          ),
+                        ],
                       ),
-                    )
-                    .then((_) => context.read<HabitBloc>().add(const LoadHabits()));
+                    ) ??
+                    false;
               },
-              onStatusChanged: (status) async {
-                final currentValue = _resolveCurrentValueForStatus(
-                  habit: habit,
-                  tracking: todayTracking,
-                  status: status,
-                );
-                context.read<HabitBloc>().add(
-                      TrackHabitEvent(
-                        habitId: habit.id,
-                        status: status,
-                        currentValue: currentValue,
-                      ),
-                    );
-                if (status == AppConstants.statusDone) {
-                  _showGradualIncreaseSuggestion(habit);
-                  _showCompletionPraise(habit);
-                }
-                await Future.delayed(const Duration(milliseconds: 200));
+              onDismissed: (_) {
+                context.read<HabitBloc>().add(DeleteHabitEvent(habit.id));
                 _loadTodayTracking();
               },
+              background: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.delete, color: Colors.white),
+              ),
+              child: HabitCard(
+                key: ValueKey('habit_${habit.id}_${todayTracking?.currentValue ?? 0}'),
+                habit: habit,
+                todayTracking: todayTracking,
+                pausedRemainingSeconds: pausedRemainingSeconds,
+                onTap: () {
+                  Navigator.of(context)
+                      .push(
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) =>
+                              HabitDetailScreen(habitId: habit.id),
+                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            return SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(1.0, 0.0),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            );
+                          },
+                          transitionDuration: const Duration(milliseconds: 300),
+                        ),
+                      )
+                      .then((_) => context.read<HabitBloc>().add(const LoadHabits()));
+                },
+                onStatusChanged: (status) async {
+                  final currentValue = _resolveCurrentValueForStatus(
+                    habit: habit,
+                    tracking: todayTracking,
+                    status: status,
+                  );
+                  context.read<HabitBloc>().add(
+                        TrackHabitEvent(
+                          habitId: habit.id,
+                          status: status,
+                          currentValue: currentValue,
+                        ),
+                      );
+                  if (status == AppConstants.statusDone) {
+                    _showGradualIncreaseSuggestion(habit);
+                    _showCompletionPraise(habit);
+                  }
+                  await Future.delayed(const Duration(milliseconds: 200));
+                  _loadTodayTracking();
+                },
+              ),
             );
           },
         );

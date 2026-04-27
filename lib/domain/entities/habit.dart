@@ -4,6 +4,7 @@ class Habit {
   final String minimalAction;
   final String frequency; // 'daily' or 'weekly'
   final String? reminderTime; // HH:mm format or null
+  final List<int>? reminderDays; // 1-7 (Mon-Sun), null means every day
   final DateTime createdAt;
   
   // Количественные цели (например, 3 стакана воды)
@@ -17,6 +18,7 @@ class Habit {
     required this.minimalAction,
     required this.frequency,
     this.reminderTime,
+    this.reminderDays,
     required this.createdAt,
     this.goalType,
     this.targetValue,
@@ -29,6 +31,7 @@ class Habit {
     String? minimalAction,
     String? frequency,
     String? reminderTime,
+    List<int>? reminderDays,
     DateTime? createdAt,
     String? goalType,
     int? targetValue,
@@ -40,6 +43,7 @@ class Habit {
       minimalAction: minimalAction ?? this.minimalAction,
       frequency: frequency ?? this.frequency,
       reminderTime: reminderTime ?? this.reminderTime,
+      reminderDays: reminderDays ?? this.reminderDays,
       createdAt: createdAt ?? this.createdAt,
       goalType: goalType ?? this.goalType,
       targetValue: targetValue ?? this.targetValue,

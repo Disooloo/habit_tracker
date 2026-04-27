@@ -52,7 +52,7 @@ class AppDatabase {
       return await databaseFactory!.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 2,
+          version: 3,
           onCreate: _onCreate,
           onUpgrade: _onUpgrade,
         ),
@@ -66,7 +66,7 @@ class AppDatabase {
       return await databaseFactory!.openDatabase(
         path,
         options: OpenDatabaseOptions(
-          version: 2,
+          version: 3,
           onCreate: _onCreate,
           onUpgrade: _onUpgrade,
         ),
@@ -74,7 +74,7 @@ class AppDatabase {
     } else {
       return await openDatabase(
         path,
-        version: 2,
+        version: 3,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -91,6 +91,7 @@ class AppDatabase {
         minimal_action TEXT NOT NULL,
         frequency TEXT NOT NULL,
         reminder_time TEXT,
+        reminder_days TEXT,
         created_at INTEGER NOT NULL,
         goal_type TEXT,
         target_value INTEGER,
@@ -132,6 +133,15 @@ class AppDatabase {
         await db.execute('ALTER TABLE habit_tracking ADD COLUMN current_value INTEGER');
       } catch (e) {
         // Columns might already exist, ignore error
+        if (kDebugMode) {
+          print('Migration error (might be expected): $e');
+        }
+      }
+    }
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE habits ADD COLUMN reminder_days TEXT');
+      } catch (e) {
         if (kDebugMode) {
           print('Migration error (might be expected): $e');
         }

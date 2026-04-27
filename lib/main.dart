@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:habit_tracker/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'firebase_options.dart';
 
 import 'core/theme/app_theme.dart';
 import 'data/database/app_database.dart';
@@ -21,11 +23,11 @@ import 'presentation/bloc/onboarding/onboarding_bloc.dart';
 import 'presentation/bloc/timer/timer_bloc.dart';
 import 'presentation/bloc/statistics/statistics_bloc.dart';
 import 'presentation/screens/onboarding/onboarding_screen.dart';
-import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/habit_form/habit_form_screen.dart';
 import 'presentation/screens/habit_detail/habit_detail_screen.dart';
 import 'presentation/screens/timer/timer_screen.dart';
 import 'presentation/screens/statistics/statistics_screen.dart';
+import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/settings/subscription_screen.dart';
 import 'presentation/screens/settings/feedback_screen.dart';
@@ -33,11 +35,23 @@ import 'presentation/screens/settings/privacy_policy_screen.dart';
 import 'presentation/screens/settings/terms_of_service_screen.dart';
 import 'presentation/screens/notifications/notifications_screen.dart';
 import 'presentation/screens/diary/diary_screen.dart';
+import 'presentation/screens/profile/profile_screen.dart';
+import 'presentation/screens/profile/account_management_screen.dart';
 import 'services/notification_service.dart';
 import 'core/constants/app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    // On unsupported platforms (e.g. Windows) Firebase options may be absent.
+    if (kDebugMode) {
+      print('Firebase initialization skipped: $e');
+    }
+  }
 
   // Initialize database factory first
   try {
@@ -164,7 +178,7 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
       child: MaterialApp(
-        title: 'Мягкий трекер привычек',
+        title: 'Трекер привычек',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: ThemeData.dark(useMaterial3: true),
@@ -205,6 +219,8 @@ class _MyAppState extends State<MyApp> {
                 onThemeModeChanged: _onThemeModeChanged,
               ),
           '/subscription': (context) => const SubscriptionScreen(),
+          '/profile': (context) => const ProfileScreen(),
+          '/account-management': (context) => const AccountManagementScreen(),
           '/feedback': (context) => const FeedbackScreen(),
           '/privacy-policy': (context) => const PrivacyPolicyScreen(),
           '/terms-of-service': (context) => const TermsOfServiceScreen(),

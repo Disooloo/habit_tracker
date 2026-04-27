@@ -36,6 +36,7 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
     on<DeleteHabitEvent>(_onDeleteHabit);
     on<TrackHabitEvent>(_onTrackHabit);
     on<LoadHabitDetail>(_onLoadHabitDetail);
+    on<DeleteTrackingEvent>(_onDeleteTracking);
   }
 
   Future<void> _onLoadHabits(LoadHabits event, Emitter<HabitState> emit) async {
@@ -124,6 +125,19 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
       } else {
         emit(const HabitError('Habit not found'));
       }
+    } catch (e) {
+      emit(HabitError(e.toString()));
+    }
+  }
+
+  Future<void> _onDeleteTracking(
+    DeleteTrackingEvent event,
+    Emitter<HabitState> emit,
+  ) async {
+    try {
+      await repository.deleteTrackingById(event.trackingId);
+      add(LoadHabitDetail(event.habitId));
+      add(const LoadHabits());
     } catch (e) {
       emit(HabitError(e.toString()));
     }

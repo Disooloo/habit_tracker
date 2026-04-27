@@ -518,6 +518,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
 
   Widget _buildTrackingItem(BuildContext context, HabitTracking tracking) {
     final theme = Theme.of(context);
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
     final date = habit_date_utils.DateUtils.parseDate(tracking.date);
     final isToday = habit_date_utils.DateUtils.isToday(date);
 
@@ -549,12 +550,58 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         subtitle: Text(
           '${date.day}.${date.month}.${date.year}  ${tracking.timestamp.hour.toString().padLeft(2, '0')}:${tracking.timestamp.minute.toString().padLeft(2, '0')}',
         ),
-        trailing: Text(
-          statusText,
-          style: TextStyle(color: statusColor),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              statusText,
+              style: TextStyle(color: statusColor),
+            ),
+            IconButton(
+              tooltip: isRu ? 'Удалить запись' : 'Delete record',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => _confirmDeleteTracking(context, tracking),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDeleteTracking(
+    BuildContext context,
+    HabitTracking tracking,
+  ) async {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isRu ? 'Удалить запись?' : 'Delete record?'),
+        content: Text(
+          isRu
+              ? 'Эту запись в истории нельзя будет восстановить.'
+              : 'This history record cannot be restored.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(isRu ? 'Отмена' : 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(isRu ? 'Удалить' : 'Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+    context.read<HabitBloc>().add(
+          DeleteTrackingEvent(
+            habitId: widget.habitId,
+            trackingId: tracking.id,
+          ),
+        );
   }
 
   void _showIncreaseGoalDialog(BuildContext context, Habit habit) {

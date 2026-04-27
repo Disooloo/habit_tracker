@@ -93,6 +93,16 @@ class HabitRepositoryImpl implements HabitRepository {
   }
 
   @override
+  Future<void> deleteTrackingById(int trackingId) async {
+    final db = await _database.database;
+    await db.delete(
+      'habit_tracking',
+      where: 'id = ?',
+      whereArgs: [trackingId],
+    );
+  }
+
+  @override
   Future<List<HabitTracking>> getTrackingByHabitId(int habitId) async {
     final db = await _database.database;
     final List<Map<String, dynamic>> maps = await db.query(

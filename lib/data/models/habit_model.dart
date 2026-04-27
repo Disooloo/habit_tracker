@@ -7,6 +7,7 @@ class HabitModel extends Habit {
     required super.minimalAction,
     required super.frequency,
     super.reminderTime,
+    super.reminderDays,
     required super.createdAt,
     super.goalType,
     super.targetValue,
@@ -20,6 +21,7 @@ class HabitModel extends Habit {
       minimalAction: json['minimal_action'] as String,
       frequency: json['frequency'] as String,
       reminderTime: json['reminder_time'] as String?,
+      reminderDays: _parseReminderDays(json['reminder_days'] as String?),
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['created_at'] as int),
       goalType: json['goal_type'] as String?,
       targetValue: json['target_value'] as int?,
@@ -34,6 +36,7 @@ class HabitModel extends Habit {
       'minimal_action': minimalAction,
       'frequency': frequency,
       'reminder_time': reminderTime,
+      'reminder_days': _encodeReminderDays(reminderDays),
       'created_at': createdAt.millisecondsSinceEpoch,
       'goal_type': goalType,
       'target_value': targetValue,
@@ -48,11 +51,31 @@ class HabitModel extends Habit {
       minimalAction: habit.minimalAction,
       frequency: habit.frequency,
       reminderTime: habit.reminderTime,
+      reminderDays: habit.reminderDays,
       createdAt: habit.createdAt,
       goalType: habit.goalType,
       targetValue: habit.targetValue,
       unit: habit.unit,
     );
+  }
+
+  static List<int>? _parseReminderDays(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final parsed = raw
+        .split(',')
+        .map((e) => int.tryParse(e.trim()))
+        .whereType<int>()
+        .where((d) => d >= 1 && d <= 7)
+        .toList()
+      ..sort();
+    if (parsed.isEmpty) return null;
+    return parsed;
+  }
+
+  static String? _encodeReminderDays(List<int>? days) {
+    if (days == null || days.isEmpty) return null;
+    final normalized = [...days]..sort();
+    return normalized.join(',');
   }
 }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:habit_tracker/l10n/app_localizations.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../bloc/habit/habit_bloc.dart';
 import '../../bloc/habit/habit_event.dart';
 import '../../bloc/habit/habit_state.dart';
@@ -31,6 +30,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
   String _frequency = AppConstants.frequencyDailyOnce;
   bool _hasReminder = false;
   TimeOfDay? _reminderTime;
+  Set<int> _selectedReminderDays = {1, 2, 3, 4, 5, 6, 7};
   
   // Количественные/временные цели
   String? _goalType; // 'quantity', 'time', or null
@@ -52,19 +52,18 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
   }
 
   Future<void> _syncHabitReminder(Habit habit) async {
-    final prefs = await SharedPreferences.getInstance();
-    final enabled = prefs.getBool(AppConstants.keyNotificationsEnabled) ?? false;
-    if (!enabled) return;
-
     final service = NotificationService();
     if (habit.reminderTime == null || habit.reminderTime!.isEmpty) {
       await service.cancelHabitReminder(habit.id);
       return;
     }
+    final granted = await service.requestPermissions();
+    if (!granted) return;
     await service.scheduleHabitReminder(
       habitId: habit.id,
       habitName: habit.name,
       timeString: habit.reminderTime,
+      weekdays: habit.reminderDays,
     );
   }
 
@@ -82,6 +81,8 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
           _minimalActionController.text = habit.minimalAction;
           _frequency = habit.frequency;
           _hasReminder = habit.reminderTime != null;
+          _selectedReminderDays = habit.reminderDays?.toSet() ??
+              {1, 2, 3, 4, 5, 6, 7};
           if (habit.reminderTime != null) {
             final parts = habit.reminderTime!.split(':');
             _reminderTime = TimeOfDay(
@@ -150,6 +151,11 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
       frequency: _frequency,
       reminderTime: _hasReminder && _reminderTime != null
           ? '${_reminderTime!.hour.toString().padLeft(2, '0')}:${_reminderTime!.minute.toString().padLeft(2, '0')}'
+          : null,
+      reminderDays: _hasReminder
+          ? (_selectedReminderDays.length == 7
+              ? null
+              : (_selectedReminderDays.toList()..sort()))
           : null,
       createdAt: _existingHabit?.createdAt ?? DateTime.now(),
       goalType: _goalType,
@@ -489,6 +495,8 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                     }
                   },
                 ),
+                const SizedBox(height: 8),
+                _buildReminderDaysSelector(context),
               ],
               const SizedBox(height: 32),
               ElevatedButton(
@@ -636,6 +644,47 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
       default:
         return 'minutes';
     }
+  }
+
+  Widget _buildReminderDaysSelector(BuildContext context) {
+    final isRu = Localizations.localeOf(context).languageCode.startsWith('ru');
+    final labels = isRu
+        ? const ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+        : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isRu ? 'Дни напоминаний' : 'Reminder days',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(7, (index) {
+            final day = index + 1;
+            final selected = _selectedReminderDays.contains(day);
+            return FilterChip(
+              label: Text(labels[index]),
+              selected: selected,
+              onSelected: (value) {
+                setState(() {
+                  if (value) {
+                    _selectedReminderDays.add(day);
+                  } else {
+                    if (_selectedReminderDays.length > 1) {
+                      _selectedReminderDays.remove(day);
+                    }
+                  }
+                });
+              },
+            );
+          }),
+        ),
+      ],
+    );
   }
 }
 

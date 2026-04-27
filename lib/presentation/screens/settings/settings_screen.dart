@@ -203,6 +203,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           ListTile(
+            title: Text(l10n.profileTab),
+            subtitle: Text(
+              isRu ? 'Аккаунт, авторизация и профиль' : 'Account, auth and profile',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            leading: const Icon(Icons.person_outline),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).pushNamed('/profile');
+            },
+          ),
+          const Divider(),
+          ListTile(
             title: Text(isRu ? 'Подписка и промокоды' : 'Subscription and promo codes'),
             subtitle: Text(
               isRu ? 'Тарифы, скидки и активация промокода' : 'Plans, discounts and promo activation',

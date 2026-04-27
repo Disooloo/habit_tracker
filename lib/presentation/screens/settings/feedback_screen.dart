@@ -56,6 +56,17 @@ class FeedbackScreen extends StatelessWidget {
               child: Text(isRu ? 'Открыть' : 'Open'),
             ),
           ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _open(
+                'https://www.sberbank.ru/ru/choise_bank?requisiteNumber=%2B79274630405&bankCode=100000000004',
+              ),
+              icon: const Icon(Icons.favorite_outline),
+              label: Text(isRu ? 'Поддержать автора' : 'Support the author'),
+            ),
+          ),
           const SizedBox(height: 12),
           Text(
             isRu

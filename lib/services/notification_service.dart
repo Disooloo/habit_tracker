@@ -74,6 +74,7 @@ class NotificationService {
     required int habitId,
     required String habitName,
     required String? timeString, // HH:mm format
+    List<int>? weekdays, // 1..7 (Mon..Sun), null/empty => every day
   }) async {
     if (timeString == null || timeString.isEmpty) return;
 
@@ -90,30 +91,65 @@ class NotificationService {
     final random = Random();
     final message = _reminderMessages[random.nextInt(_reminderMessages.length)];
 
-    // Schedule daily notification
-    await _notifications.zonedSchedule(
-      habitId, // Use habit ID as notification ID
-      habitName,
-      message,
-      _nextInstanceOfTime(hour, minute),
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          AppConstants.notificationChannelId.toString(),
-          AppConstants.notificationChannelName,
-          channelDescription: AppConstants.notificationChannelDescription,
-          importance: Importance.low,
-          priority: Priority.low,
+    final normalizedDays = (weekdays == null || weekdays.isEmpty)
+        ? <int>[]
+        : weekdays.where((d) => d >= 1 && d <= 7).toSet().toList()..sort();
+
+    if (normalizedDays.isEmpty) {
+      await _notifications.zonedSchedule(
+        habitId, // daily id
+        habitName,
+        message,
+        _nextInstanceOfTime(hour, minute),
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            AppConstants.notificationChannelId.toString(),
+            AppConstants.notificationChannelName,
+            channelDescription: AppConstants.notificationChannelDescription,
+            importance: Importance.low,
+            priority: Priority.low,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+      return;
+    }
+
+    for (final day in normalizedDays) {
+      final notificationId = habitId * 10 + day;
+      await _notifications.zonedSchedule(
+        notificationId,
+        habitName,
+        message,
+        _nextInstanceOfWeekdayTime(day, hour, minute),
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            AppConstants.notificationChannelId.toString(),
+            AppConstants.notificationChannelName,
+            channelDescription: AppConstants.notificationChannelDescription,
+            importance: Importance.low,
+            priority: Priority.low,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+      );
+    }
   }
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
@@ -136,10 +172,33 @@ class NotificationService {
 
   Future<void> cancelHabitReminder(int habitId) async {
     await _notifications.cancel(habitId);
+    for (var day = 1; day <= 7; day++) {
+      await _notifications.cancel(habitId * 10 + day);
+    }
   }
 
   Future<void> cancelAllReminders() async {
     await _notifications.cancelAll();
+  }
+
+  tz.TZDateTime _nextInstanceOfWeekdayTime(
+    int weekday,
+    int hour,
+    int minute,
+  ) {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+    while (scheduledDate.weekday != weekday || scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
   }
 
   Future<void> scheduleInactivityReminder48h() async {
